@@ -1,0 +1,45 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 13px/1.45 system-ui, sans-serif;
+  background: #0b1020;
+  color: #e8edf8;
+}
+header { padding: 14px 14px 8px; }
+h1 { margin: 0; font-size: 16px; }
+header p, .note { color: #93a0c2; margin: 6px 0 0; }
+.tabs { display: flex; gap: 4px; padding: 0 12px; border-bottom: 1px solid #2a3657; }
+.tab {
+  background: none; border: 0; color: #93a0c2;
+  padding: 8px 10px; border-bottom: 2px solid transparent; cursor: pointer;
+}
+.tab.on { color: #e8edf8; border-bottom-color: #7aa2ff; }
+.view { display: none; padding: 12px; }
+.view.on { display: block; }
+input, textarea {
+  width: 100%; background: #0d1430; color: inherit;
+  border: 1px solid #2a3657; border-radius: 8px; padding: 8px;
+}
+textarea { min-height: 110px; resize: vertical; }
+.row { display: flex; gap: 6px; margin: 8px 0; }
+.row.wrap { flex-wrap: wrap; }
+button {
+  background: #223056; color: inherit; border: 1px solid #2a3657;
+  border-radius: 8px; padding: 7px 10px; cursor: pointer;
+}
+button.primary { background: #27408a; border-color: #3b62c7; }
+button.danger { background: #3a1520; border-color: #7a2438; }
+.card {
+  background: #161f38; border: 1px solid #2a3657; border-radius: 10px;
+  padding: 8px; margin: 8px 0;
+}
+.card h3 { margin: 0 0 4px; font-size: 13px; }
+.card p { margin: 0; color: #93a0c2; white-space: pre-wrap; max-height: 72px; overflow: hidden; }
+.chats article {
+  background: #161f38; border: 1px solid #2a3657; border-radius: 10px;
+  padding: 8px; margin-bottom: 8px;
+}
+.chats h2 { margin: 0 0 6px; font-size: 13px; }
+iframe { width: 100%; height: 280px; border: 0; border-radius: 8px; background: #fff; margin-top: 8px; }
+.chk { display: flex; gap: 6px; align-items: center; color: #93a0c2; margin: 6px 0 10px; }

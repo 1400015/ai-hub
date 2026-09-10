@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Hub Memória</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <header>
+    <h1>AI Hub Memória</h1>
+    <p>Memória partilhada entre Qwen, DeepSeek, GLM e Mistral. Injecção no chat oficial + exportação de código.</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab on" data-view="mem">Memórias</button>
+    <button class="tab" data-view="chats">Chats</button>
+    <button class="tab" data-view="send">Enviar</button>
+    <button class="tab" data-view="hub">Hub</button>
+  </nav>
+
+  <section id="view-mem" class="view on">
+    <div class="row">
+      <input id="title" placeholder="Título da memória" />
+    </div>
+    <textarea id="body" placeholder="Factos, persona, restrições, contexto do projecto…"></textarea>
+    <div class="row">
+      <button id="save" class="primary">Guardar</button>
+      <button id="clear">Limpar editor</button>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <section id="view-chats" class="view">
+    <p class="note">O painel tenta abrir o site oficial em iframe. Se ficar em branco, usa Nova janela.</p>
+    <div class="chats">
+      <article data-src="https://chat.qwen.ai"><h2>Qwen</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
+      <article data-src="https://chat.deepseek.com"><h2>DeepSeek</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
+      <article data-src="https://chat.z.ai"><h2>GLM / Z.ai</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
+      <article data-src="https://chat.mistral.ai"><h2>Mistral</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
+    </div>
+  </section>
+
+  <section id="view-send" class="view">
+    <textarea id="prompt" placeholder="Pedido desta volta. As memórias activas são prefixadas."></textarea>
+    <label class="chk"><input type="checkbox" id="autosend" /> Tentar enviar automaticamente</label>
+    <div class="row wrap" id="targets"></div>
+    <p class="note">Abre primeiro o chat no browser (login feito). Depois escolhe o destino.</p>
+  </section>
+
+  <section id="view-hub" class="view">
+    <p class="note">O service worker fala com o servidor Python. Sem isto, DOCX/PDF/XLSX não são gerados.</p>
+    <input id="hubUrl" placeholder="http://127.0.0.1:8765" />
+    <div class="row">
+      <button id="saveHub" class="primary">Guardar URL</button>
+      <button id="pingHub">Testar</button>
+    </div>
+    <p class="note" id="hubStatus">Ainda não testado.</p>
+  </section>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
