@@ -1,0 +1,7 @@
+local/exports/*
+!local/exports/.gitkeep
+local/data/memories.json
+__pycache__/
+*.pyc
+.DS_Store
+*.zip
