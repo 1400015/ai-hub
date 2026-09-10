@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "AI Hub Memória",
+  "version": "1.1.0",
+  "description": "Memória partilhada, injecção de prompt e exportação de código em Qwen, DeepSeek, GLM e Mistral.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "AI Hub Memória",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "scripting",
+    "activeTab",
+    "downloads",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "https://chat.qwen.ai/*",
+    "https://chat.qwenlm.ai/*",
+    "https://chat.deepseek.com/*",
+    "https://chat.z.ai/*",
+    "https://chatglm.cn/*",
+    "https://*.chatglm.cn/*",
+    "https://chat.mistral.ai/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "allow_iframes",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.qwen.ai/*",
+        "https://chat.qwenlm.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://chat.z.ai/*",
+        "https://chatglm.cn/*",
+        "https://*.chatglm.cn/*",
+        "https://chat.mistral.ai/*"
+      ],
+      "js": ["content/sites.js", "content/inject.js"],
+      "css": ["content/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
