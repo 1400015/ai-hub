@@ -1,0 +1,73 @@
+#aihub-dock {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  width: 250px;
+  background: #121a2f;
+  color: #e8edf8;
+  border: 1px solid #2a3657;
+  border-radius: 12px;
+  font: 12px/1.4 system-ui, sans-serif;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+#aihub-dock.min .aihub-body { display: none; }
+#aihub-dock .aihub-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2a3657;
+}
+#aihub-dock .aihub-head button {
+  background: transparent;
+  border: 0;
+  color: #93a0c2;
+  cursor: pointer;
+}
+#aihub-dock .aihub-body { padding: 8px 10px 10px; }
+#aihub-dock .aihub-hint { margin: 0 0 8px; color: #93a0c2; }
+#aihub-dock .aihub-row { display: flex; gap: 6px; margin-bottom: 6px; }
+#aihub-dock button[data-act] {
+  flex: 1;
+  background: #223056;
+  border: 1px solid #2a3657;
+  color: #e8edf8;
+  border-radius: 8px;
+  padding: 6px 7px;
+  cursor: pointer;
+}
+#aihub-dock button[data-act]:hover { border-color: #7aa2ff; }
+.aihub-dl {
+  position: absolute !important;
+  top: 6px !important;
+  right: 6px !important;
+  z-index: 20;
+  background: #27408a !important;
+  color: #fff !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  font: 11px system-ui, sans-serif !important;
+  padding: 3px 7px !important;
+  cursor: pointer !important;
+}
+#aihub-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(20px);
+  background: #0f3d32;
+  color: #5eead4;
+  border: 1px solid #1d6b57;
+  padding: 8px 12px;
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2147483647;
+  font: 12px system-ui, sans-serif;
+  transition: opacity 0.2s, transform 0.2s;
+}
+#aihub-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
