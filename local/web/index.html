@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Hub Local — Qwen · DeepSeek · GLM · Mistral</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>AI Hub Local</h1>
+        <p>Memoria partilhada, atalhos para chats oficiais e exportacao de codigo e documentos.</p>
+      </div>
+      <div class="section">
+        <h2>Memorias</h2>
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn primary" id="btnNewMem">Nova</button>
+          <button class="btn" id="btnSaveMems">Guardar no disco</button>
+          <button class="btn ghost" id="btnLoadMems">Recarregar</button>
+        </div>
+        <div class="mem-list" id="memList"></div>
+      </div>
+      <div class="section">
+        <h2>Editor de memoria</h2>
+        <input id="memTitle" placeholder="Titulo" />
+        <div style="height:8px"></div>
+        <textarea id="memBody" placeholder="Texto a injetar no prompt…"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ok" id="btnCommitMem">Adicionar / atualizar</button>
+          <button class="btn danger" id="btnDelMem">Apagar</button>
+        </div>
+      </div>
+      <div class="section grow">
+        <h2>Compositor de prompt</h2>
+        <textarea id="userPrompt" placeholder="Escreve o pedido desta volta…"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn primary" id="btnBuildPrompt">Gerar prompt com memoria</button>
+          <button class="btn" id="btnCopyPrompt">Copiar</button>
+        </div>
+        <div class="preview" id="promptPreview" style="margin-top:8px">O prompt composto aparece aqui.</div>
+      </div>
+    </aside>
+    <main class="main">
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="qwen">Qwen</button>
+        <button class="tab" data-tab="deepseek">DeepSeek</button>
+        <button class="tab" data-tab="glm">GLM</button>
+        <button class="tab" data-tab="mistral">Mistral</button>
+        <button class="tab" data-tab="monitor">Monitor / Exportar</button>
+        <button class="tab" data-tab="api">Chat via API</button>
+        <button class="tab" data-tab="settings">Chaves API</button>
+      </nav>
+      <div class="workspace">
+        <section class="panel active" id="panel-qwen"></section>
+        <section class="panel" id="panel-deepseek"></section>
+        <section class="panel" id="panel-glm"></section>
+        <section class="panel" id="panel-mistral"></section>
+        <section class="panel" id="panel-monitor">
+          <div class="notice">Cola aqui a resposta do modelo para detetar blocos de codigo e gerar ficheiros locais.</div>
+          <textarea id="monitorInput" style="min-height:180px" placeholder="Cola a resposta completa do modelo…"></textarea>
+          <div class="row">
+            <button class="btn primary" id="btnScan">Analisar resposta</button>
+            <button class="btn" id="btnExportAllMd">Tudo → Markdown</button>
+            <button class="btn" id="btnExportAllDocx">Tudo → DOCX</button>
+            <button class="btn" id="btnExportAllPdf">Tudo → PDF</button>
+            <input id="exportTitle" placeholder="Nome do ficheiro" style="max-width:220px" value="resposta" />
+          </div>
+          <div class="blocks" id="detectedBlocks"></div>
+          <h2 style="font-size:13px;color:var(--muted);margin:8px 0 0">Ficheiros gerados</h2>
+          <div class="files" id="fileList"></div>
+        </section>
+        <section class="panel" id="panel-api">
+          <div class="row">
+            <select id="apiProvider" style="max-width:180px">
+              <option value="qwen">Qwen</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="glm">GLM / Z.ai</option>
+              <option value="mistral">Mistral</option>
+            </select>
+            <input id="apiModel" placeholder="modelo (opcional)" style="max-width:220px" />
+            <label class="btn ghost"><input type="checkbox" id="useCn" /> Endpoint CN</label>
+            <button class="btn" id="btnNewChat">Nova conversa</button>
+          </div>
+          <div class="chat-log" id="chatLog"></div>
+          <div class="row">
+            <textarea id="apiPrompt" placeholder="Mensagem…"></textarea>
+          </div>
+          <div class="row">
+            <button class="btn primary" id="btnSendApi">Enviar com memoria</button>
+            <button class="btn ok" id="btnSendToMonitor">Ultima resposta → Monitor</button>
+          </div>
+        </section>
+        <section class="panel" id="panel-settings">
+          <div class="notice">As chaves ficam so neste browser (localStorage) e vao ao servidor local em 127.0.0.1.</div>
+          <label>Qwen / DashScope</label>
+          <input id="key-qwen" type="password" placeholder="sk-…" autocomplete="off" />
+          <label>DeepSeek</label>
+          <input id="key-deepseek" type="password" placeholder="sk-…" autocomplete="off" />
+          <label>GLM / Z.ai / BigModel</label>
+          <input id="key-glm" type="password" placeholder="…" autocomplete="off" />
+          <label>Mistral</label>
+          <input id="key-mistral" type="password" placeholder="…" autocomplete="off" />
+          <div class="row">
+            <button class="btn primary" id="btnSaveKeys">Guardar chaves</button>
+            <button class="btn danger" id="btnClearKeys">Apagar chaves</button>
+          </div>
+        </section>
+      </div>
+      <div class="status" id="status">Pronto.</div>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>
