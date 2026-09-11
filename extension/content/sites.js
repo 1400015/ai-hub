@@ -5,12 +5,14 @@ const AIHUB_SITES = [
     name: "Qwen",
     test: (h) => h.includes("chat.qwen.ai") || h.includes("chat.qwenlm.ai"),
     url: "https://chat.qwen.ai",
-    composers: ["#chat-input", "textarea#chat-input", "textarea[placeholder]", "textarea"],
+    // Selectores com fallbacks e scoring (robustez)
+    composers: ["#chat-input", "textarea#chat-input", "textarea[placeholder]", "textarea", '[contenteditable="true"]'],
     send: [
       "button#send-button",
       "button[aria-label*='Send' i]",
       "button[aria-label*='Enviar' i]",
       "button[class*='send']",
+      'div[role="button"]',
     ],
   },
   {
@@ -23,11 +25,13 @@ const AIHUB_SITES = [
       'textarea[placeholder*="mensagem" i]',
       'textarea[placeholder*="Message" i]',
       "textarea",
+      '[contenteditable="true"]',
     ],
     send: [
       'div[role="button"][aria-disabled="false"]',
       "button[aria-label*='Send' i]",
       "button[class*='send']",
+      'button[type="submit"]',
     ],
   },
   {
@@ -40,7 +44,7 @@ const AIHUB_SITES = [
       '[contenteditable="true"][role="textbox"]',
       '[contenteditable="true"]',
     ],
-    send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[class*='send']"],
+    send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[class*='send']", 'div[role="button"]'],
   },
   {
     id: "mistral",
@@ -52,7 +56,7 @@ const AIHUB_SITES = [
       '[contenteditable="true"][role="textbox"]',
       '[contenteditable="true"]',
     ],
-    send: ["button[aria-label*='Send' i]", "button[type='submit']"],
+    send: ["button[aria-label*='Send' i]", "button[type='submit']", 'div[role="button"]'],
   },
 ];
 

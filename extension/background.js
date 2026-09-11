@@ -1,5 +1,23 @@
 const DEFAULT_HUB = "http://127.0.0.1:8765";
 
+// Retry mechanism com backoff exponencial (robustez)
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  let lastError;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(url, options);
+      return res;
+    } catch (err) {
+      lastError = err;
+      if (i < maxRetries - 1) {
+        const delay = 500 * Math.pow(2, i); // 500ms, 1s, 2s
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => {});
 });
@@ -12,7 +30,8 @@ function hubUrl() {
 
 async function hubFetch(path, options) {
   const base = await hubUrl();
-  const res = await fetch(base + path, options);
+  // Usa retry mechanism para falhas temporarias
+  const res = await fetchWithRetry(base + path, options);
   const text = await res.text();
   let data = null;
   try {
@@ -51,6 +70,25 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg?.type === "get-memories") {
     chrome.storage.local.get({ memories: [] }, (data) => sendResponse(data));
+    return true;
+  }
+
+  if (msg?.type === "sync-memories") {
+    // Sincronizacao entre extensao e hub web
+    chrome.storage.local.get({ memories: [] }, async (localData) => {
+      try {
+        const base = await hubUrl();
+        // Envia memorias locais para o hub
+        await fetchWithRetry(base + "/api/memories", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memories: localData.memories })
+        });
+        sendResponse({ ok: true, count: localData.memories.length });
+      } catch (err) {
+        sendResponse({ ok: false, error: err.message });
+      }
+    });
     return true;
   }
 

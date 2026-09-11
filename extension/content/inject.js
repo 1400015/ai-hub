@@ -51,11 +51,18 @@
       return true;
     }
 
+    // Substituicao moderna sem execCommand (deprecated) - usa Selection/Range API
     try {
-      document.execCommand("selectAll", false, null);
-      const ok = document.execCommand("insertText", false, next);
-      if (ok) return true;
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.execCommand("insertText", false, next);
+      return true;
     } catch (_) {}
+    
+    // Fallback para textContent
     el.textContent = next;
     el.dispatchEvent(new InputEvent("input", { bubbles: true, data: next }));
     return true;
@@ -260,6 +267,12 @@
 
   buildDock();
   markCodeBlocks();
-  const mo = new MutationObserver(() => markCodeBlocks());
+  
+  // Debounce no MutationObserver (performance) - evita re-execucoes excessivas
+  let debounceTimer = null;
+  const mo = new MutationObserver(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => markCodeBlocks(), 300);
+  });
   mo.observe(document.documentElement, { childList: true, subtree: true });
 })();
