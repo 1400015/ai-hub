@@ -5,14 +5,12 @@ const AIHUB_SITES = [
     name: "Qwen",
     test: (h) => h.includes("chat.qwen.ai") || h.includes("chat.qwenlm.ai"),
     url: "https://chat.qwen.ai",
-    // Selectores com fallbacks e scoring (robustez)
     composers: ["#chat-input", "textarea#chat-input", "textarea[placeholder]", "textarea", '[contenteditable="true"]'],
     send: [
       "button#send-button",
       "button[aria-label*='Send' i]",
       "button[aria-label*='Enviar' i]",
       "button[class*='send']",
-      'div[role="button"]',
     ],
   },
   {
@@ -44,7 +42,7 @@ const AIHUB_SITES = [
       '[contenteditable="true"][role="textbox"]',
       '[contenteditable="true"]',
     ],
-    send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[class*='send']", 'div[role="button"]'],
+    send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[class*='send']"],
   },
   {
     id: "mistral",
@@ -56,7 +54,7 @@ const AIHUB_SITES = [
       '[contenteditable="true"][role="textbox"]',
       '[contenteditable="true"]',
     ],
-    send: ["button[aria-label*='Send' i]", "button[type='submit']", 'div[role="button"]'],
+    send: ["button[aria-label*='Send' i]", "button[type='submit']"],
   },
 ];
 
