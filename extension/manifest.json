@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Hub Memória",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Memória partilhada, injecção de prompt e exportação de código em Qwen, DeepSeek, GLM e Mistral.",
   "icons": {
     "16": "icons/icon16.png",
