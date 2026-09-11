@@ -10,7 +10,7 @@ const LANG_TO_FMT = {
   xml: "xml", yaml: "yaml", yml: "yml", bash: "sh", sh: "sh", rust: "rs", go: "go", c: "c",
   cpp: "cpp", kotlin: "kt", swift: "swift", ruby: "rb", php: "php", r: "r", text: "txt",
 };
-const state = { memories: [], editingId: null, lastAssistant: "", messages: [] };
+const state = { memories: [], editingId: null, lastAssistant: "", messages: [], conversations: [] };
 
 function uid() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()); }
 function setStatus(msg) { document.getElementById("status").textContent = msg; }
@@ -41,7 +41,7 @@ function renderMemories() {
   state.memories.forEach((m) => {
     const el = document.createElement("article");
     el.className = "mem-card" + (m.id === state.editingId ? " active" : "");
-    el.innerHTML = "<header><h3>" + escapeHtml(m.title) + "</h3><label class=\"chip\"><input type=\"checkbox\" " + (m.active ? "checked" : "") + " data-id=\"" + m.id + "\" /> ativa</label></header><p>" + escapeHtml(m.body) + "</p>";
+    el.innerHTML = "<header><h3>" + escapeHtml(m.title) + "</h3><label class=\"chip\"><input type=\"checkbox\" " + (m.active ? "checked" : "") + " /> ativa</label></header><p>" + escapeHtml(m.body) + "</p>";
     el.addEventListener("click", (ev) => {
       if (ev.target.closest("input")) return;
       state.editingId = m.id;
@@ -58,7 +58,6 @@ function providerPanel(id) {
   const p = PROVIDERS[id];
   return '<div class="notice">' + escapeHtml(p.note) + ' Usa Copiar prompt composto e cola no chat.</div><div class="row"><button class="btn primary" data-open="' + p.url + '">Abrir ' + escapeHtml(p.name) + '</button>' + (p.alt ? '<button class="btn" data-open="' + p.alt + '">Abrir chatglm.cn</button>' : '') + '<button class="btn ok" data-copy-prompt="1">Copiar prompt composto</button></div>';
 }
-
 function initProviderPanels() {
   ["qwen", "deepseek", "glm", "mistral"].forEach((id) => { document.getElementById("panel-" + id).innerHTML = providerPanel(id); });
   document.querySelector(".workspace").addEventListener("click", (ev) => {
@@ -67,13 +66,11 @@ function initProviderPanels() {
     if (ev.target.closest("[data-copy-prompt]")) copyComposed();
   });
 }
-
 function copyComposed() {
   const text = composedPrompt(document.getElementById("userPrompt").value);
   document.getElementById("promptPreview").textContent = text || "(vazio)";
   navigator.clipboard.writeText(text).then(() => setStatus("Prompt composto copiado."), () => setStatus("Copia o preview manualmente."));
 }
-
 function parseCodeBlocks(text) {
   const re = /```([A-Za-z0-9_+-]*)\s*\n([\s\S]*?)```/g;
   const blocks = [];
@@ -84,7 +81,6 @@ function parseCodeBlocks(text) {
   }
   return blocks;
 }
-
 function renderBlocks(blocks) {
   const box = document.getElementById("detectedBlocks");
   box.innerHTML = "";
@@ -100,7 +96,6 @@ function renderBlocks(blocks) {
     box.appendChild(el);
   });
 }
-
 async function exportFile(format, content, title) {
   setStatus("A gerar " + format + "…");
   try {
@@ -112,7 +107,29 @@ async function exportFile(format, content, title) {
     refreshFiles();
   } catch (err) { setStatus("Erro ao exportar: " + err.message); }
 }
-
+async function exportDetectedZip() {
+  const blocks = parseCodeBlocks(document.getElementById("monitorInput").value);
+  if (!blocks.length) { setStatus("Nao ha blocos ``` para o ZIP."); return; }
+  const title = document.getElementById("exportTitle").value || "blocos";
+  setStatus("A gerar ZIP…");
+  try {
+    const res = await fetch("/api/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        format: "zip",
+        title,
+        content: ".",
+        files: blocks.map((b) => ({ filename: b.lang + "-" + b.id + "." + b.format, content: b.content })),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "falha");
+    const a = document.createElement("a"); a.href = data.url; a.download = data.filename; document.body.appendChild(a); a.click(); a.remove();
+    setStatus("ZIP " + data.filename);
+    refreshFiles();
+  } catch (err) { setStatus("Erro ZIP: " + err.message); }
+}
 async function refreshFiles() {
   try {
     const res = await fetch("/api/exports");
@@ -121,7 +138,6 @@ async function refreshFiles() {
     box.innerHTML = (data.files || []).slice(0, 20).map((f) => '<div class="file"><span>' + escapeHtml(f.name) + '</span><a class="btn" href="' + f.url + '" download>Descarregar</a></div>').join("") || '<p style="color:var(--muted)">Nenhum ficheiro ainda.</p>';
   } catch {}
 }
-
 function appendMsg(role, text) {
   const log = document.getElementById("chatLog");
   const el = document.createElement("div");
@@ -131,7 +147,58 @@ function appendMsg(role, text) {
   log.scrollTop = log.scrollHeight;
 }
 function keys() { try { return JSON.parse(localStorage.getItem("aihub.keys") || "{}"); } catch { return {}; } }
-
+function replayMessages(messages) {
+  document.getElementById("chatLog").innerHTML = "";
+  (messages || []).forEach((m) => appendMsg(m.role === "assistant" ? "assistant" : m.role === "system" ? "sys" : "user", m.content || ""));
+}
+function renderConversations() {
+  const box = document.getElementById("convList");
+  if (!box) return;
+  if (!state.conversations.length) {
+    box.innerHTML = '<p style="color:var(--muted)">Ainda nao ha conversas gravadas.</p>';
+    return;
+  }
+  box.innerHTML = state.conversations.map((c) => {
+    const n = (c.messages || []).length;
+    const when = c.savedAt || "";
+    return '<div class="file"><span>' + escapeHtml(c.title || "conversa") + ' · ' + n + ' msgs ' + escapeHtml(when) + '</span><span class="row"><button class="btn" data-load="' + escapeHtml(c.id) + '">Abrir</button><button class="btn danger" data-delc="' + escapeHtml(c.id) + '">Apagar</button></span></div>';
+  }).join("");
+  box.querySelectorAll("[data-load]").forEach((btn) => {
+    btn.onclick = () => {
+      const c = state.conversations.find((x) => x.id === btn.dataset.load);
+      if (!c) return;
+      state.messages = (c.messages || []).slice();
+      const last = [...state.messages].reverse().find((m) => m.role === "assistant");
+      state.lastAssistant = last ? last.content : "";
+      replayMessages(state.messages);
+      setStatus("Conversa carregada.");
+    };
+  });
+  box.querySelectorAll("[data-delc]").forEach((btn) => {
+    btn.onclick = async () => {
+      state.conversations = state.conversations.filter((x) => x.id !== btn.dataset.delc);
+      await fetch("/api/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversations: state.conversations }) });
+      renderConversations();
+    };
+  });
+}
+async function loadConversations() {
+  try {
+    const res = await fetch("/api/conversations");
+    const data = await res.json();
+    state.conversations = data.conversations || [];
+    renderConversations();
+  } catch { renderConversations(); }
+}
+async function saveConversation() {
+  if (!state.messages.length) { setStatus("Nada para guardar."); return; }
+  const title = (document.getElementById("apiProvider").value || "chat") + " " + new Date().toLocaleString("pt-PT");
+  state.conversations.unshift({ id: uid(), title, savedAt: new Date().toISOString().slice(0, 19).replace("T", " "), messages: state.messages.slice() });
+  state.conversations = state.conversations.slice(0, 50);
+  const res = await fetch("/api/conversations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversations: state.conversations }) });
+  setStatus(res.ok ? "Conversa gravada." : "Falha a gravar conversa");
+  renderConversations();
+}
 async function sendApi() {
   const provider = document.getElementById("apiProvider").value;
   const model = document.getElementById("apiModel").value.trim();
@@ -155,7 +222,6 @@ async function sendApi() {
     setStatus("Resposta recebida.");
   } catch (err) { appendMsg("sys", "Erro: " + err.message); setStatus("Falha na API: " + err.message); }
 }
-
 function bindUi() {
   document.getElementById("tabs").addEventListener("click", (ev) => {
     const tab = ev.target.closest(".tab");
@@ -164,6 +230,7 @@ function bindUi() {
     document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
     document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
     if (tab.dataset.tab === "monitor") refreshFiles();
+    if (tab.dataset.tab === "api") loadConversations();
   });
   document.getElementById("btnNewMem").onclick = () => { state.editingId = null; document.getElementById("memTitle").value = ""; document.getElementById("memBody").value = ""; };
   document.getElementById("btnCommitMem").onclick = () => {
@@ -197,7 +264,9 @@ function bindUi() {
   document.getElementById("btnExportAllMd").onclick = () => exportFile("md", document.getElementById("monitorInput").value, document.getElementById("exportTitle").value);
   document.getElementById("btnExportAllDocx").onclick = () => exportFile("docx", document.getElementById("monitorInput").value, document.getElementById("exportTitle").value);
   document.getElementById("btnExportAllPdf").onclick = () => exportFile("pdf", document.getElementById("monitorInput").value, document.getElementById("exportTitle").value);
+  document.getElementById("btnExportZip").onclick = exportDetectedZip;
   document.getElementById("btnSendApi").onclick = sendApi;
+  document.getElementById("btnSaveConv").onclick = saveConversation;
   document.getElementById("btnNewChat").onclick = () => { state.messages = []; document.getElementById("chatLog").innerHTML = ""; appendMsg("sys", "Conversa reiniciada."); };
   document.getElementById("btnSendToMonitor").onclick = () => { document.getElementById("monitorInput").value = state.lastAssistant; renderBlocks(parseCodeBlocks(state.lastAssistant)); document.querySelector('[data-tab="monitor"]').click(); };
   document.getElementById("btnSaveKeys").onclick = () => {
@@ -208,7 +277,6 @@ function bindUi() {
   const stored = keys();
   ["qwen","deepseek","glm","mistral"].forEach((p) => { if (stored[p]) document.getElementById("key-" + p).value = stored[p]; });
 }
-
 async function boot() {
   initProviderPanels();
   state.memories = loadLocalMemories();
@@ -216,7 +284,7 @@ async function boot() {
     state.memories = [{ id: uid(), title: "Identidade", active: true, body: "Responde em portugues de Portugal, de forma directa. Quando gerares codigo, usa blocos markdown com a linguagem correcta." }];
     persistLocalMemories();
   }
-  renderMemories(); bindUi(); refreshFiles();
+  renderMemories(); bindUi(); refreshFiles(); loadConversations();
   try {
     const res = await fetch("/api/health"); const data = await res.json();
     setStatus(data.ok ? "Servidor local ligado." : "UI estatica sem API.");
