@@ -51,20 +51,21 @@
       return true;
     }
 
-    // Substituicao moderna sem execCommand (deprecated) - usa Selection/Range API
+    try {
+      el.textContent = next;
+      el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: next }));
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    } catch (_) {}
+
     try {
       const selection = window.getSelection();
       const range = document.createRange();
       range.selectNodeContents(el);
       selection.removeAllRanges();
       selection.addRange(range);
-      document.execCommand("insertText", false, next);
-      return true;
+      if (document.execCommand) document.execCommand("insertText", false, next);
     } catch (_) {}
-    
-    // Fallback para textContent
-    el.textContent = next;
-    el.dispatchEvent(new InputEvent("input", { bubbles: true, data: next }));
     return true;
   }
 
@@ -163,7 +164,7 @@
   }
 
   function escapeHtml(s) {
-    return s.replace(/[&<>]/g, (c) => ({ "&": "&", "<": "<", ">": ">" }[c]));
+    return String(s).replace(/[&<>]/g, (c) => ({ "&": "&", "<": "<", ">": ">" }[c]));
   }
 
   function toast(msg) {
@@ -267,8 +268,6 @@
 
   buildDock();
   markCodeBlocks();
-  
-  // Debounce no MutationObserver (performance) - evita re-execucoes excessivas
   let debounceTimer = null;
   const mo = new MutationObserver(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
