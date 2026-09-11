@@ -1,18 +1,19 @@
 const DEFAULT_HUB = "http://127.0.0.1:8765";
 
-// Retry mechanism com backoff exponencial (robustez)
 async function fetchWithRetry(url, options, maxRetries = 3) {
   let lastError;
   for (let i = 0; i < maxRetries; i++) {
     try {
       const res = await fetch(url, options);
+      if (res.status >= 400 && res.status < 500) return res;
+      if (!res.ok && i < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, 500 * Math.pow(2, i)));
+        continue;
+      }
       return res;
     } catch (err) {
       lastError = err;
-      if (i < maxRetries - 1) {
-        const delay = 500 * Math.pow(2, i); // 500ms, 1s, 2s
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+      if (i < maxRetries - 1) await new Promise((r) => setTimeout(r, 500 * Math.pow(2, i)));
     }
   }
   throw lastError;
@@ -30,7 +31,6 @@ function hubUrl() {
 
 async function hubFetch(path, options) {
   const base = await hubUrl();
-  // Usa retry mechanism para falhas temporarias
   const res = await fetchWithRetry(base + path, options);
   const text = await res.text();
   let data = null;
@@ -45,6 +45,17 @@ async function hubFetch(path, options) {
     throw err;
   }
   return data;
+}
+
+function mergeMemories(localList, remoteList) {
+  const map = new Map();
+  (remoteList || []).forEach((m) => {
+    if (m && m.id) map.set(String(m.id), m);
+  });
+  (localList || []).forEach((m) => {
+    if (m && m.id) map.set(String(m.id), m);
+  });
+  return [...map.values()];
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -74,17 +85,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg?.type === "sync-memories") {
-    // Sincronizacao entre extensao e hub web
     chrome.storage.local.get({ memories: [] }, async (localData) => {
       try {
-        const base = await hubUrl();
-        // Envia memorias locais para o hub
-        await fetchWithRetry(base + "/api/memories", {
+        const remote = await hubFetch("/api/memories");
+        const merged = mergeMemories(localData.memories || [], remote.memories || []);
+        await hubFetch("/api/memories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memories: localData.memories })
+          body: JSON.stringify({ memories: merged }),
         });
-        sendResponse({ ok: true, count: localData.memories.length });
+        await chrome.storage.local.set({ memories: merged });
+        sendResponse({ ok: true, count: merged.length });
       } catch (err) {
         sendResponse({ ok: false, error: err.message });
       }
