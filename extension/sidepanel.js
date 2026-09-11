@@ -37,6 +37,17 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """ }[c]));
 }
 
+function setHubStatus(text) {
+  const el = document.getElementById("hubStatus");
+  if (el) el.textContent = text;
+}
+
+function syncWithHub() {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "sync-memories" }, (res) => resolve(res || { ok: false, error: chrome.runtime.lastError?.message }));
+  });
+}
+
 async function renderList() {
   const list = document.getElementById("list");
   const memories = await getMemories();
@@ -111,6 +122,20 @@ document.getElementById("clear").onclick = () => {
   document.getElementById("body").value = "";
 };
 
+async function onSyncClick() {
+  setHubStatus("A sincronizar…");
+  const res = await syncWithHub();
+  if (res.ok) {
+    setHubStatus("Sincronizado: " + (res.count || 0) + " memorias.");
+    renderList();
+  } else {
+    setHubStatus("Sync falhou: " + (res.error || "hub offline"));
+  }
+}
+
+document.getElementById("syncMem").onclick = onSyncClick;
+document.getElementById("syncHub").onclick = onSyncClick;
+
 document.querySelector(".chats").addEventListener("click", (ev) => {
   const card = ev.target.closest("article");
   if (!card) return;
@@ -173,15 +198,11 @@ chrome.storage.local.get({ hubUrl: "http://127.0.0.1:8765" }, (d) => {
 });
 document.getElementById("saveHub").onclick = () => {
   const url = (document.getElementById("hubUrl").value || "").replace(/\/$/, "") || "http://127.0.0.1:8765";
-  chrome.storage.local.set({ hubUrl: url }, () => {
-    document.getElementById("hubStatus").textContent = "URL gravado: " + url;
-  });
+  chrome.storage.local.set({ hubUrl: url }, () => setHubStatus("URL gravado: " + url));
 };
 document.getElementById("pingHub").onclick = () => {
   chrome.runtime.sendMessage({ type: "hub-health" }, (res) => {
-    document.getElementById("hubStatus").textContent = res?.ok
-      ? "Hub OK"
-      : "Falhou: " + (res?.error || "servidor parado");
+    setHubStatus(res?.ok ? "Hub OK" : "Falhou: " + (res?.error || "servidor parado"));
   });
 };
 
