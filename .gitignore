@@ -1,7 +1,1 @@
-local/exports/*
-!local/exports/.gitkeep
-local/data/memories.json
-__pycache__/
-*.pyc
-.DS_Store
-*.zip
+Nothing needs to be added to .gitignore since the changes only include a source HTML file (`download_page.html`) and a deleted zip file (`ai-hub.zip`). No build artifacts, dependencies, or temporary files are present in the change list that would warrant adding ignore rules.

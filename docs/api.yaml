@@ -1,0 +1,319 @@
+openapi: 3.0.3
+info:
+  title: AI Hub Local API
+  description: API para gestao de memorias, exportacao e chat com provedores de IA
+  version: 1.2.0
+  contact:
+    name: AI Hub Team
+
+servers:
+  - url: http://127.0.0.1:8765
+    description: Servidor local
+
+paths:
+  /api/health:
+    get:
+      summary: Verifica saude do servidor
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Servidor operacional
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  providers:
+                    type: array
+                    items:
+                      type: string
+                    example: ["qwen", "deepseek", "glm", "mistral"]
+
+  /api/memories:
+    get:
+      summary: Lista todas as memorias
+      operationId: listMemories
+      responses:
+        '200':
+          description: Lista de memorias
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  memories:
+                    $ref: '#/components/schemas/MemoryList'
+    post:
+      summary: Guarda memorias no disco
+      operationId: saveMemories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                memories:
+                  $ref: '#/components/schemas/MemoryList'
+      responses:
+        '200':
+          description: Memorias guardadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  count:
+                    type: integer
+
+  /api/conversations:
+    get:
+      summary: Lista todas as conversas
+      operationId: listConversations
+      responses:
+        '200':
+          description: Lista de conversas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+    post:
+      summary: Guarda conversas no disco
+      operationId: saveConversations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversations:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Conversation'
+
+  /api/export:
+    post:
+      summary: Exporta conteudo para ficheiro
+      operationId: exportFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/ExportRequest'
+                - $ref: '#/components/schemas/ZipExportRequest'
+      responses:
+        '200':
+          description: Ficheiro gerado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  filename:
+                    type: string
+                  path:
+                    type: string
+                  url:
+                    type: string
+                  size:
+                    type: integer
+        '400':
+          description: Erro de validacao
+
+  /api/chat:
+    post:
+      summary: Envia mensagem para provedor de IA
+      operationId: sendChat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Resposta da IA
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  text:
+                    type: string
+                  raw:
+                    type: object
+
+  /api/exports:
+    get:
+      summary: Lista ficheiros exportados
+      operationId: listExports
+      responses:
+        '200':
+          description: Lista de ficheiros
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExportedFile'
+
+  /downloads/{filename}:
+    get:
+      summary: Descarrega ficheiro exportado
+      operationId: downloadFile
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ficheiro para download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+components:
+  schemas:
+    Memory:
+      type: object
+      required:
+        - id
+        - title
+        - body
+        - active
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        active:
+          type: boolean
+
+    MemoryList:
+      type: array
+      items:
+        $ref: '#/components/schemas/Memory'
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        created_at:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+
+    ExportRequest:
+      type: object
+      required:
+        - format
+        - content
+      properties:
+        format:
+          type: string
+          enum: [md, txt, py, js, html, docx, xlsx, pdf, zip]
+        content:
+          type: string
+        title:
+          type: string
+
+    ZipExportRequest:
+      type: object
+      required:
+        - format
+        - files
+      properties:
+        format:
+          type: string
+          enum: [zip]
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+              content:
+                type: string
+        title:
+          type: string
+
+    ChatRequest:
+      type: object
+      required:
+        - provider
+        - api_key
+        - messages
+      properties:
+        provider:
+          type: string
+          enum: [qwen, deepseek, glm, mistral]
+        api_key:
+          type: string
+        model:
+          type: string
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        stream:
+          type: boolean
+          default: false
+        temperature:
+          type: number
+          default: 0.7
+        use_cn:
+          type: boolean
+          default: false
+
+    ExportedFile:
+      type: object
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        mtime:
+          type: string
+          format: date-time
+        url:
+          type: string
