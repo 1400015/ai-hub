@@ -65,6 +65,7 @@
             <button class="btn" id="btnExportAllMd">Tudo → Markdown</button>
             <button class="btn" id="btnExportAllDocx">Tudo → DOCX</button>
             <button class="btn" id="btnExportAllPdf">Tudo → PDF</button>
+            <button class="btn ok" id="btnExportZip">Blocos → ZIP</button>
             <input id="exportTitle" placeholder="Nome do ficheiro" style="max-width:220px" value="resposta" />
           </div>
           <div class="blocks" id="detectedBlocks"></div>
@@ -82,6 +83,7 @@
             <input id="apiModel" placeholder="modelo (opcional)" style="max-width:220px" />
             <label class="btn ghost"><input type="checkbox" id="useCn" /> Endpoint CN</label>
             <button class="btn" id="btnNewChat">Nova conversa</button>
+            <button class="btn" id="btnSaveConv">Guardar conversa</button>
           </div>
           <div class="chat-log" id="chatLog"></div>
           <div class="row">
@@ -91,6 +93,8 @@
             <button class="btn primary" id="btnSendApi">Enviar com memoria</button>
             <button class="btn ok" id="btnSendToMonitor">Ultima resposta → Monitor</button>
           </div>
+          <h2 style="font-size:13px;color:var(--muted);margin:8px 0 0">Historico</h2>
+          <div class="files" id="convList"></div>
         </section>
         <section class="panel" id="panel-settings">
           <div class="notice">As chaves ficam so neste browser (localStorage) e vao ao servidor local em 127.0.0.1.</div>
