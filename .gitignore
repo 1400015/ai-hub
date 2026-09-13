@@ -1,1 +1,66 @@
-Nothing needs to be added to .gitignore since the changes only include a source HTML file (`download_page.html`) and a deleted zip file (`ai-hub.zip`). No build artifacts, dependencies, or temporary files are present in the change list that would warrant adding ignore rules.
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+!extension/lib/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.venv/
+
+# Configurações de IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# Dados locais e ficheiros gerados
+local/data/*.json
+local/exports/*
+!local/exports/.gitkeep
+
+# Extensão Chrome
+extension/_metadata/
+*.crx
+*.zip
+
+# Variáveis de ambiente e segredos
+.env
+.env.*
+!.env.example
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log

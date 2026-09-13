@@ -33,8 +33,8 @@ def bump_version(manifest_path, version_type="patch"):
     new_version = ".".join(map(str, parts))
     data["version"] = new_version
     
-    manifest.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"Versao actualizada: {version} → {new_version}")
+    manifest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Versao actualizada: {version} -> {new_version}")
     return new_version
 
 

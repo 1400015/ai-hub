@@ -1,3 +1,15 @@
+// ============================================================================
+// AI Hub - Painel Lateral (sidepanel.js)
+// Gere a interface multitarefa do painel lateral: Memórias, Chats, Envio,
+// Ficheiros criados e Definições de ligação ao hub local.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// BLOCO 1: Alvos Oficiais Suportados para Envio Rápido
+// O QUE É SUPOSTO ACONTECER:
+// - Mapeia os sites oficiais para onde a extensão pode enviar prompts com
+//   memórias injetadas com um simples clique.
+// ----------------------------------------------------------------------------
 const TARGETS = [
   { id: "qwen", name: "Qwen", url: "https://chat.qwen.ai/" },
   { id: "deepseek", name: "DeepSeek", url: "https://chat.deepseek.com/" },
@@ -6,6 +18,15 @@ const TARGETS = [
   { id: "mistral", name: "Mistral", url: "https://chat.mistral.ai/" },
 ];
 
+// ----------------------------------------------------------------------------
+// BLOCO 2: Utilitários de ID, Armazenamento Local e Sanitização HTML
+// O QUE É SUPOSTO ACONTECER:
+// - uid(): Gera identificadores únicos universais (UUIDv4) para novas memórias.
+// - getMemories() / setMemories(): Interface assíncrona com chrome.storage.local.
+// - compose(user): Prefixa o texto do utilizador com o bloco das memórias ativas.
+// - escapeHtml(s): Previne ataques XSS ao renderizar títulos e corpos no DOM.
+// - formatBytes(bytes): Converte tamanhos de ficheiro em unidades legíveis (KB, MB).
+// ----------------------------------------------------------------------------
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
 }
@@ -34,7 +55,13 @@ function compose(user) {
 }
 
 function escapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """ }[c]));
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
 }
 
 function setHubStatus(text) {
@@ -48,6 +75,20 @@ function syncWithHub() {
   });
 }
 
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return "0 B";
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+// ----------------------------------------------------------------------------
+// BLOCO 3: Renderização da Lista de Memórias no Painel
+// O QUE É SUPOSTO ACONTECER:
+// - Constrói cartões interativos para cada memória registada.
+// - Permite ativar/desativar memórias via checkbox sem recarregar a interface.
+// - Permite editar título e corpo ou apagar memórias existentes.
+// ----------------------------------------------------------------------------
 async function renderList() {
   const list = document.getElementById("list");
   const memories = await getMemories();
@@ -86,14 +127,100 @@ async function renderList() {
   });
 }
 
+function getHubUrl() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get({ hubUrl: "http://127.0.0.1:8765" }, (d) => {
+      resolve((d.hubUrl || "http://127.0.0.1:8765").replace(/\/$/, ""));
+    });
+  });
+}
+
+// ----------------------------------------------------------------------------
+// BLOCO 4: Renderização da Lista de Ficheiros Exportados (Aba Ficheiros)
+// O QUE É SUPOSTO ACONTECER:
+// - Pede ao servidor local a lista de ficheiros gerados em local/exports/.
+// - Renderiza cartões com o nome, tamanho e data de cada ficheiro.
+// - Botão "Descarregar" seguro: valida que a URL começa por "/downloads/" e
+//   usa esquema http:/https:, evitando qualquer injeção maliciosa.
+// ----------------------------------------------------------------------------
+async function renderExportsList() {
+  const container = document.getElementById("filesList");
+  if (!container) return;
+  container.innerHTML = '<p class="note">A carregar ficheiros…</p>';
+  chrome.runtime.sendMessage({ type: "hub-exports" }, async (res) => {
+    if (!res?.ok || !res.data?.files?.length) {
+      container.innerHTML = '<p class="note">' + (res?.error || "Nenhum ficheiro exportado ainda.") + '</p>';
+      return;
+    }
+    const hub = await getHubUrl();
+    container.innerHTML = "";
+    res.data.files.forEach((f) => {
+      const card = document.createElement("article");
+      card.className = "card";
+      card.innerHTML =
+        "<h3>" + escapeHtml(f.name) + "</h3>" +
+        "<p>" + formatBytes(f.size) + " · " + escapeHtml(f.mtime || "") + "</p>" +
+        "<div class=\"row\">" +
+        "<button data-dl class=\"primary\" type=\"button\">Descarregar</button>" +
+        "</div>";
+      card.querySelector("[data-dl]").onclick = () => {
+        if (!f.url || !f.url.startsWith("/downloads/")) return;
+        try {
+          const u = new URL(hub + f.url);
+          if (u.protocol === "http:" || u.protocol === "https:") {
+            chrome.tabs.create({ url: u.href });
+          }
+        } catch {}
+      };
+      container.appendChild(card);
+    });
+  });
+}
+
+// ----------------------------------------------------------------------------
+// BLOCO 5: Navegação por Separadores (Tabs) e Acesso Direto com 1 Clique
+// O QUE É SUPOSTO ACONTECER:
+// - Comuta entre as vistas: Memórias, Chats, Enviar, Ficheiros e Hub.
+// - Lê a chave temporária "targetView" para focar automaticamente a aba
+//   pedida a partir do popup ou da barra flutuante dos chats.
+// - Botão "openDownloads": Abre diretamente chrome://downloads no navegador.
+// ----------------------------------------------------------------------------
 document.querySelector(".tabs").addEventListener("click", (ev) => {
   const tab = ev.target.closest(".tab");
   if (!tab) return;
+  const viewId = tab.dataset.view;
+  const targetView = document.getElementById("view-" + viewId);
+  if (!targetView) return;
   document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("on", t === tab));
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("on"));
-  document.getElementById("view-" + tab.dataset.view).classList.add("on");
+  targetView.classList.add("on");
+  if (viewId === "files") renderExportsList();
 });
 
+const refreshFilesBtn = document.getElementById("refreshFiles");
+if (refreshFilesBtn) refreshFilesBtn.onclick = renderExportsList;
+
+const openDownloadsBtn = document.getElementById("openDownloads");
+if (openDownloadsBtn) {
+  openDownloadsBtn.onclick = () => {
+    chrome.tabs.create({ url: "chrome://downloads" });
+  };
+}
+
+chrome.storage.local.get({ targetView: null }, (d) => {
+  if (d.targetView) {
+    const tabBtn = document.querySelector(`.tab[data-view="${d.targetView}"]`);
+    if (tabBtn) tabBtn.click();
+    chrome.storage.local.remove("targetView");
+  }
+});
+
+// ----------------------------------------------------------------------------
+// BLOCO 6: Gestão do Formulário de Memórias (Guardar e Limpar)
+// O QUE É SUPOSTO ACONTECER:
+// - Grava uma nova memória ou atualiza uma existente se estiver em modo de edição.
+// - Limpa os campos do formulário após guardar.
+// ----------------------------------------------------------------------------
 document.getElementById("save").onclick = async () => {
   const title = document.getElementById("title").value.trim() || "Memoria";
   const body = document.getElementById("body").value.trim();
@@ -136,6 +263,12 @@ async function onSyncClick() {
 document.getElementById("syncMem").onclick = onSyncClick;
 document.getElementById("syncHub").onclick = onSyncClick;
 
+// ----------------------------------------------------------------------------
+// BLOCO 7: Interação com os Chats Oficiais (Iframes e Novas Janelas)
+// O QUE É SUPOSTO ACONTECER:
+// - Abre o site oficial de IA em nova janela ou carrega dentro de um iframe
+//   embutido no próprio painel lateral (desbloqueado via rules.json).
+// ----------------------------------------------------------------------------
 document.querySelector(".chats").addEventListener("click", (ev) => {
   const card = ev.target.closest("article");
   if (!card) return;
@@ -147,12 +280,21 @@ document.querySelector(".chats").addEventListener("click", (ev) => {
   }
 });
 
+// ----------------------------------------------------------------------------
+// BLOCO 8: Envio de Mensagem com Memórias para Separadores Alvo
+// O QUE É SUPOSTO ACONTECER:
+// - Constrói o texto prefixado com as memórias ativas.
+// - Procura um separador aberto com a IA escolhida ou cria um novo separador.
+// - Envia o texto via mensagem IPC ao content script com opção de envio automático.
+// - Copia também o texto para a área de transferência como contingência rápida.
+// ----------------------------------------------------------------------------
 const targets = document.getElementById("targets");
 TARGETS.forEach((t) => {
   const b = document.createElement("button");
   b.textContent = t.name;
   b.onclick = async () => {
     const text = await compose(document.getElementById("prompt").value);
+    const autoSubmit = Boolean(document.getElementById("autosend")?.checked);
     const tabs = await chrome.tabs.query({});
     const hit = tabs.find((tab) => tab.url && tab.url.startsWith(t.url.replace(/\/$/, "")));
     const send = async (tabId) => {
@@ -160,17 +302,19 @@ TARGETS.forEach((t) => {
         await chrome.tabs.sendMessage(tabId, {
           type: "inject",
           mode: "replace",
-          text: document.getElementById("prompt").value,
+          text: text,
+          submit: autoSubmit,
         });
       } catch {
         await chrome.scripting.executeScript({
           target: { tabId },
-          files: ["content/sites.js", "content/inject.js"],
+          files: ["lib/exporter.js", "content/sites.js", "content/inject.js"],
         });
         await chrome.tabs.sendMessage(tabId, {
           type: "inject",
           mode: "replace",
-          text: document.getElementById("prompt").value,
+          text: text,
+          submit: autoSubmit,
         });
       }
     };
@@ -192,6 +336,13 @@ TARGETS.forEach((t) => {
   targets.appendChild(b);
 });
 
+// ----------------------------------------------------------------------------
+// BLOCO 9: Definições de Ligação ao Servidor Local e Memória Inicial (Seed)
+// O QUE É SUPOSTO ACONTECER:
+// - Permite alterar e guardar a URL do servidor local Python.
+// - Inicializa a extensão pela primeira vez com uma memória pré-configurada
+//   de identidade ("Responde em português de Portugal...").
+// ----------------------------------------------------------------------------
 const hubUrlInput = document.getElementById("hubUrl");
 chrome.storage.local.get({ hubUrl: "http://127.0.0.1:8765" }, (d) => {
   if (hubUrlInput) hubUrlInput.value = d.hubUrl || "http://127.0.0.1:8765";

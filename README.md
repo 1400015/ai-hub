@@ -29,9 +29,15 @@ Sem o servidor a correr, formatos de texto fazem fallback para download no Chrom
 pip install python-docx openpyxl reportlab
 ```
 
-## Privacidade
+## Documentação e Manuais
+
+- 📖 [MANUAL.md](MANUAL.md) — Manual do utilizador e guia de instalação passo a passo.
+- 🛠️ [PROGRAMMING_MANUAL.md](PROGRAMMING_MANUAL.md) — Manual de programação e arquitetura com explicação linha a linha do código, segurança e decisões técnicas.
+
+## Privacidade e Segurança
 
 - Memórias da extensão: `chrome.storage.local`
 - Memórias do hub: `local/data/memories.json`
-- Chaves API (opcional, só no hub web): `localStorage` do browser
-- Nada é enviado para um servidor nosso
+- Chaves API no painel web: Criptografia AES-GCM 256 bits com PBKDF2 (100.000 iterações) via Web Crypto API.
+- Modo Autónomo: Exportações (DOCX, XLSX, PDF, ZIP) e chamadas de IA funcionam diretamente no browser sem enviar dados para servidores externos de telemetria.
+

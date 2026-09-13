@@ -1,36 +1,73 @@
+// ============================================================================
+// AI Hub - Painel Web Local (local/web/app.js)
+// Interface web independente: gestão de memórias, criptografia AES-GCM,
+// extração de código e streaming de IA em tempo real.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// BLOCO 1: Dicionários de Configuração de Provedores e Linguagens
+// O QUE É SUPOSTO ACONTECER:
+// - Mapeia os metadados de cada fornecedor de IA para a interface gráfica.
+// - Associa linguagens de programação aos formatos de exportação correspondentes.
+// ----------------------------------------------------------------------------
 const PROVIDERS = {
   qwen: { name: "Qwen", url: "https://chat.qwen.ai", note: "Chat oficial. Iframe quase de certeza bloqueado." },
   deepseek: { name: "DeepSeek", url: "https://chat.deepseek.com", note: "X-Frame-Options impede embedding." },
   glm: { name: "GLM / Z.ai", url: "https://chat.z.ai", alt: "https://chatglm.cn", note: "Internacional: chat.z.ai · China: chatglm.cn." },
   mistral: { name: "Mistral Le Chat", url: "https://chat.mistral.ai", note: "frame-ancestors none — o iframe nao carrega." },
 };
+
 const LANG_TO_FMT = {
   python: "py", py: "py", java: "java", javascript: "js", js: "js", typescript: "ts", ts: "ts",
   html: "html", css: "css", json: "json", csv: "csv", sql: "sql", markdown: "md", md: "md",
   xml: "xml", yaml: "yaml", yml: "yml", bash: "sh", sh: "sh", rust: "rs", go: "go", c: "c",
   cpp: "cpp", kotlin: "kt", swift: "swift", ruby: "rb", php: "php", r: "r", text: "txt",
 };
+
+// Estado reativo em memória da aplicação
 const state = { memories: [], editingId: null, lastAssistant: "", messages: [], conversations: [] };
 
+// ----------------------------------------------------------------------------
+// BLOCO 2: Utilitários de Interface e Formatação de Prompts
+// O QUE É SUPOSTO ACONTECER:
+// - uid(): Gera identificadores únicos.
+// - setStatus(): Atualiza a barra de estado inferior.
+// - memoryBlock() / composedPrompt(): Monta o prompt prefixado com as memórias ativas.
+// - escapeHtml(): Sanitiza strings antes de injetar no DOM para prevenir XSS.
+// ----------------------------------------------------------------------------
 function uid() { return crypto.randomUUID ? crypto.randomUUID() : String(Date.now()); }
 function setStatus(msg) { document.getElementById("status").textContent = msg; }
 function loadLocalMemories() { try { return JSON.parse(localStorage.getItem("aihub.memories") || "[]"); } catch { return []; } }
 function persistLocalMemories() { localStorage.setItem("aihub.memories", JSON.stringify(state.memories)); }
 function activeMemories() { return state.memories.filter((m) => m.active); }
+
 function memoryBlock() {
   const act = activeMemories();
   if (!act.length) return "";
   return act.map((m) => "### " + m.title + "\n" + m.body).join("\n\n");
 }
+
 function composedPrompt(userText) {
   const mem = memoryBlock();
   if (!mem) return userText.trim();
   return "[MEMORIA PERSISTENTE]\n" + mem + "\n[FIM DA MEMORIA]\n\n" + userText.trim();
 }
+
 function escapeHtml(s) {
-  return String(s).replaceAll("&", "&").replaceAll("<", "<").replaceAll(">", ">").replaceAll('"', """);
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
 }
 
+// ----------------------------------------------------------------------------
+// BLOCO 3: Renderização da Lista de Memórias no Painel Web
+// O QUE É SUPOSTO ACONTECER:
+// - Apresenta as memórias em cartões com opção de ativar/desativar e clicar para editar.
+// ----------------------------------------------------------------------------
 function renderMemories() {
   const box = document.getElementById("memList");
   box.innerHTML = "";
@@ -58,6 +95,7 @@ function providerPanel(id) {
   const p = PROVIDERS[id];
   return '<div class="notice">' + escapeHtml(p.note) + ' Usa Copiar prompt composto e cola no chat.</div><div class="row"><button class="btn primary" data-open="' + p.url + '">Abrir ' + escapeHtml(p.name) + '</button>' + (p.alt ? '<button class="btn" data-open="' + p.alt + '">Abrir chatglm.cn</button>' : '') + '<button class="btn ok" data-copy-prompt="1">Copiar prompt composto</button></div>';
 }
+
 function initProviderPanels() {
   ["qwen", "deepseek", "glm", "mistral"].forEach((id) => { document.getElementById("panel-" + id).innerHTML = providerPanel(id); });
   document.querySelector(".workspace").addEventListener("click", (ev) => {
@@ -66,11 +104,19 @@ function initProviderPanels() {
     if (ev.target.closest("[data-copy-prompt]")) copyComposed();
   });
 }
+
 function copyComposed() {
   const text = composedPrompt(document.getElementById("userPrompt").value);
   document.getElementById("promptPreview").textContent = text || "(vazio)";
   navigator.clipboard.writeText(text).then(() => setStatus("Prompt composto copiado."), () => setStatus("Copia o preview manualmente."));
 }
+
+// ----------------------------------------------------------------------------
+// BLOCO 4: Analisador de Blocos de Código Markdown (Code Block Scanner)
+// O QUE É SUPOSTO ACONTECER:
+// - Analisa o texto colado ou recebido da IA, extraindo blocos ```lang ... ```.
+// - Renderiza botões individuais para exportar cada bloco para o seu formato nativo.
+// ----------------------------------------------------------------------------
 function parseCodeBlocks(text) {
   const re = /```([A-Za-z0-9_+-]*)\s*\n([\s\S]*?)```/g;
   const blocks = [];
@@ -81,6 +127,7 @@ function parseCodeBlocks(text) {
   }
   return blocks;
 }
+
 function renderBlocks(blocks) {
   const box = document.getElementById("detectedBlocks");
   box.innerHTML = "";
@@ -96,6 +143,12 @@ function renderBlocks(blocks) {
     box.appendChild(el);
   });
 }
+
+// ----------------------------------------------------------------------------
+// BLOCO 5: Exportação de Documentos e Arquivos ZIP através do Servidor Local
+// O QUE É SUPOSTO ACONTECER:
+// - Envia pedidos a POST /api/export e dispara o descarregamento automático do ficheiro.
+// ----------------------------------------------------------------------------
 async function exportFile(format, content, title) {
   setStatus("A gerar " + format + "…");
   try {
@@ -107,6 +160,7 @@ async function exportFile(format, content, title) {
     refreshFiles();
   } catch (err) { setStatus("Erro ao exportar: " + err.message); }
 }
+
 async function exportDetectedZip() {
   const blocks = parseCodeBlocks(document.getElementById("monitorInput").value);
   if (!blocks.length) { setStatus("Nao ha blocos ``` para o ZIP."); return; }
@@ -130,6 +184,7 @@ async function exportDetectedZip() {
     refreshFiles();
   } catch (err) { setStatus("Erro ZIP: " + err.message); }
 }
+
 async function refreshFiles() {
   try {
     const res = await fetch("/api/exports");
@@ -138,6 +193,7 @@ async function refreshFiles() {
     box.innerHTML = (data.files || []).slice(0, 20).map((f) => '<div class="file"><span>' + escapeHtml(f.name) + '</span><a class="btn" href="' + f.url + '" download>Descarregar</a></div>').join("") || '<p style="color:var(--muted)">Nenhum ficheiro ainda.</p>';
   } catch {}
 }
+
 function appendMsg(role, text) {
   const log = document.getElementById("chatLog");
   const el = document.createElement("div");
@@ -146,11 +202,91 @@ function appendMsg(role, text) {
   log.appendChild(el);
   log.scrollTop = log.scrollHeight;
 }
-function keys() { try { return JSON.parse(localStorage.getItem("aihub.keys") || "{}"); } catch { return {}; } }
+
+let activeKeysCache = null;
+
+// ----------------------------------------------------------------------------
+// BLOCO 6: Segurança Criptográfica com a Web Crypto API (AES-GCM de 256 bits)
+// O QUE É SUPOSTO ACONTECER:
+// - deriveAesKey: Deriva uma chave simétrica de 256 bits a partir da palavra-passe
+//   mestra do utilizador usando PBKDF2 com 100.000 iterações e SHA-256.
+// - encryptKeys: Gera um Sal de 16 bytes e um IV de 12 bytes aleatórios, cifrando
+//   as chaves de API confidenciais antes de gravar no localStorage.
+// - decryptKeys: Decifra e valida a integridade dos dados autenticados.
+// ----------------------------------------------------------------------------
+async function deriveAesKey(passphrase, saltBytes) {
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(passphrase),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: saltBytes,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function encryptKeys(plainObj, passphrase) {
+  const enc = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveAesKey(passphrase, salt);
+  const encoded = enc.encode(JSON.stringify(plainObj));
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+  return {
+    encrypted: true,
+    salt: Array.from(salt),
+    iv: Array.from(iv),
+    data: Array.from(new Uint8Array(ciphertext)),
+  };
+}
+
+async function decryptKeys(cipherObj, passphrase) {
+  const salt = new Uint8Array(cipherObj.salt);
+  const iv = new Uint8Array(cipherObj.iv);
+  const data = new Uint8Array(cipherObj.data);
+  const key = await deriveAesKey(passphrase, salt);
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+  const dec = new TextDecoder();
+  return JSON.parse(dec.decode(decrypted));
+}
+
+async function getStoredKeys() {
+  if (activeKeysCache) return activeKeysCache;
+  const raw = localStorage.getItem("aihub.keys");
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.encrypted) {
+      return null; // Chaves bloqueadas pela palavra-passe mestra
+    }
+    return parsed || {};
+  } catch {
+    return {};
+  }
+}
+
+// ----------------------------------------------------------------------------
+// BLOCO 7: Gestão do Histórico de Conversas
+// O QUE É SUPOSTO ACONTECER:
+// - Grava e recarrega diálogos completos permitindo alternar entre sessões.
+// ----------------------------------------------------------------------------
 function replayMessages(messages) {
   document.getElementById("chatLog").innerHTML = "";
   (messages || []).forEach((m) => appendMsg(m.role === "assistant" ? "assistant" : m.role === "system" ? "sys" : "user", m.content || ""));
 }
+
 function renderConversations() {
   const box = document.getElementById("convList");
   if (!box) return;
@@ -182,6 +318,7 @@ function renderConversations() {
     };
   });
 }
+
 async function loadConversations() {
   try {
     const res = await fetch("/api/conversations");
@@ -190,6 +327,7 @@ async function loadConversations() {
     renderConversations();
   } catch { renderConversations(); }
 }
+
 async function saveConversation() {
   if (!state.messages.length) { setStatus("Nada para guardar."); return; }
   const title = (document.getElementById("apiProvider").value || "chat") + " " + new Date().toLocaleString("pt-PT");
@@ -199,29 +337,115 @@ async function saveConversation() {
   setStatus(res.ok ? "Conversa gravada." : "Falha a gravar conversa");
   renderConversations();
 }
+
+// ----------------------------------------------------------------------------
+// BLOCO 8: Chat com Modelos de IA e Consumo de Streaming SSE
+// O QUE É SUPOSTO ACONTECER:
+// - Envia o pedido com as mensagens e parâmetros ao endpoint /api/chat.
+// - Abre um leitor ReadableStreamDefaultReader e processa eventos SSE em tempo real.
+// - Atualiza o elemento de mensagem do assistente token a token na tela.
+// ----------------------------------------------------------------------------
 async function sendApi() {
   const provider = document.getElementById("apiProvider").value;
   const model = document.getElementById("apiModel").value.trim();
   const userText = document.getElementById("apiPrompt").value.trim();
   if (!userText) return;
-  const k = keys()[provider];
+  const currentKeys = await getStoredKeys();
+  if (currentKeys === null) {
+    setStatus("Chaves bloqueadas! Desbloqueia na aba Chaves API com a tua palavra-passe.");
+    document.querySelector('[data-tab="settings"]')?.click();
+    return;
+  }
+  const k = currentKeys[provider];
   if (!k) { setStatus("Falta a chave API em Chaves API."); return; }
   const mem = memoryBlock();
   if (!state.messages.length && mem) state.messages.push({ role: "system", content: "Memoria persistente:\n" + mem });
   state.messages.push({ role: "user", content: userText });
   appendMsg("user", userText);
   document.getElementById("apiPrompt").value = "";
-  setStatus("A pedir resposta a " + provider + "…");
+  setStatus("A pedir resposta a " + provider + " (streaming)…");
+
+  const log = document.getElementById("chatLog");
+  const assistantEl = document.createElement("div");
+  assistantEl.className = "msg assistant";
+  assistantEl.textContent = "";
+  log.appendChild(assistantEl);
+  log.scrollTop = log.scrollHeight;
+
   try {
-    const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider, api_key: k, model: model || undefined, messages: state.messages, use_cn: document.getElementById("useCn").checked }) });
-    const data = await res.json();
-    if (!res.ok) throw new Error((data.error || "erro") + (data.detail ? " — " + data.detail : ""));
-    state.lastAssistant = data.text || "";
-    state.messages.push({ role: "assistant", content: state.lastAssistant });
-    appendMsg("assistant", state.lastAssistant);
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider,
+        api_key: k,
+        model: model || undefined,
+        messages: state.messages,
+        use_cn: document.getElementById("useCn").checked,
+        stream: true,
+      }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error((errData.error || "erro HTTP " + res.status) + (errData.detail ? " — " + errData.detail : ""));
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let fullText = "";
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith(":") || trimmed === "data: [DONE]") continue;
+        if (trimmed.startsWith("data: ")) {
+          try {
+            const parsed = JSON.parse(trimmed.slice(6));
+            const delta = parsed.choices?.[0]?.delta?.content || "";
+            if (delta) {
+              fullText += delta;
+              assistantEl.textContent = fullText;
+              log.scrollTop = log.scrollHeight;
+            }
+          } catch {
+            // Ignora fragmento parcial de JSON
+          }
+        }
+      }
+    }
+
+    if (!fullText && buffer.startsWith("data: ") && buffer !== "data: [DONE]") {
+      try {
+        const parsed = JSON.parse(buffer.slice(6));
+        fullText += parsed.choices?.[0]?.delta?.content || "";
+        assistantEl.textContent = fullText;
+      } catch {}
+    }
+
+    state.lastAssistant = fullText;
+    state.messages.push({ role: "assistant", content: fullText });
     setStatus("Resposta recebida.");
-  } catch (err) { appendMsg("sys", "Erro: " + err.message); setStatus("Falha na API: " + err.message); }
+  } catch (err) {
+    if (!assistantEl.textContent) assistantEl.remove();
+    appendMsg("sys", "Erro: " + err.message);
+    setStatus("Falha na API: " + err.message);
+  }
 }
+
+// ----------------------------------------------------------------------------
+// BLOCO 9: Ligação de Eventos da Interface do Utilizador (bindUi)
+// O QUE É SUPOSTO ACONTECER:
+// - Regista os ouvintes de clique nos separadores, botões de ação e controlos
+//   do cofre de chaves criptográficas (bloquear, desbloquear, apagar).
+// ----------------------------------------------------------------------------
 function bindUi() {
   document.getElementById("tabs").addEventListener("click", (ev) => {
     const tab = ev.target.closest(".tab");
@@ -269,14 +493,97 @@ function bindUi() {
   document.getElementById("btnSaveConv").onclick = saveConversation;
   document.getElementById("btnNewChat").onclick = () => { state.messages = []; document.getElementById("chatLog").innerHTML = ""; appendMsg("sys", "Conversa reiniciada."); };
   document.getElementById("btnSendToMonitor").onclick = () => { document.getElementById("monitorInput").value = state.lastAssistant; renderBlocks(parseCodeBlocks(state.lastAssistant)); document.querySelector('[data-tab="monitor"]').click(); };
-  document.getElementById("btnSaveKeys").onclick = () => {
-    localStorage.setItem("aihub.keys", JSON.stringify({ qwen: document.getElementById("key-qwen").value.trim(), deepseek: document.getElementById("key-deepseek").value.trim(), glm: document.getElementById("key-glm").value.trim(), mistral: document.getElementById("key-mistral").value.trim() }));
-    setStatus("Chaves guardadas neste browser.");
+  
+  const cryptoStatusEl = document.getElementById("cryptoStatus");
+  const unlockBtn = document.getElementById("btnUnlockKeys");
+  const passInput = document.getElementById("masterPassword");
+
+  document.getElementById("btnSaveKeys").onclick = async () => {
+    const rawObj = {
+      qwen: document.getElementById("key-qwen").value.trim(),
+      deepseek: document.getElementById("key-deepseek").value.trim(),
+      glm: document.getElementById("key-glm").value.trim(),
+      mistral: document.getElementById("key-mistral").value.trim(),
+    };
+    const pass = passInput?.value.trim();
+    if (pass) {
+      try {
+        const cipher = await encryptKeys(rawObj, pass);
+        localStorage.setItem("aihub.keys", JSON.stringify(cipher));
+        activeKeysCache = rawObj;
+        if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Cifrado com AES-GCM 🔒";
+        if (unlockBtn) unlockBtn.style.display = "none";
+        setStatus("Chaves cifradas com AES-GCM e guardadas.");
+      } catch (err) {
+        setStatus("Falha ao cifrar: " + err.message);
+      }
+    } else {
+      localStorage.setItem("aihub.keys", JSON.stringify(rawObj));
+      activeKeysCache = rawObj;
+      if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Nao cifrado (texto simples) 🔓";
+      if (unlockBtn) unlockBtn.style.display = "none";
+      setStatus("Chaves guardadas neste browser.");
+    }
   };
-  document.getElementById("btnClearKeys").onclick = () => { localStorage.removeItem("aihub.keys"); ["qwen","deepseek","glm","mistral"].forEach((p) => document.getElementById("key-" + p).value = ""); setStatus("Chaves apagadas."); };
-  const stored = keys();
-  ["qwen","deepseek","glm","mistral"].forEach((p) => { if (stored[p]) document.getElementById("key-" + p).value = stored[p]; });
+
+  if (unlockBtn) {
+    unlockBtn.onclick = async () => {
+      const pass = passInput?.value.trim();
+      if (!pass) {
+        setStatus("Insere a palavra-passe mestre para desbloquear.");
+        return;
+      }
+      try {
+        const raw = localStorage.getItem("aihub.keys");
+        const cipher = JSON.parse(raw);
+        const dec = await decryptKeys(cipher, pass);
+        activeKeysCache = dec;
+        ["qwen", "deepseek", "glm", "mistral"].forEach((p) => {
+          if (dec[p]) document.getElementById("key-" + p).value = dec[p];
+        });
+        unlockBtn.style.display = "none";
+        if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Desbloqueado 🔓";
+        setStatus("Chaves desbloqueadas com sucesso.");
+      } catch {
+        setStatus("Palavra-passe mestre incorreta.");
+      }
+    };
+  }
+
+  document.getElementById("btnClearKeys").onclick = () => {
+    localStorage.removeItem("aihub.keys");
+    activeKeysCache = null;
+    ["qwen", "deepseek", "glm", "mistral"].forEach((p) => document.getElementById("key-" + p).value = "");
+    if (passInput) passInput.value = "";
+    if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Nao cifrado 🔓";
+    if (unlockBtn) unlockBtn.style.display = "none";
+    setStatus("Chaves apagadas.");
+  };
+
+  // Inicializacao do estado das chaves
+  const storedRaw = localStorage.getItem("aihub.keys");
+  if (storedRaw) {
+    try {
+      const parsed = JSON.parse(storedRaw);
+      if (parsed && parsed.encrypted) {
+        if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Bloqueado com senha 🔒";
+        if (unlockBtn) unlockBtn.style.display = "inline-block";
+      } else {
+        activeKeysCache = parsed;
+        ["qwen", "deepseek", "glm", "mistral"].forEach((p) => {
+          if (parsed[p]) document.getElementById("key-" + p).value = parsed[p];
+        });
+        if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Nao cifrado 🔓";
+      }
+    } catch {}
+  }
 }
+
+// ----------------------------------------------------------------------------
+// BLOCO 10: Arranque da Aplicação Web (Boot)
+// O QUE É SUPOSTO ACONTECER:
+// - Carrega as memórias, inicializa a interface e testa a ligação ao servidor local.
+// ----------------------------------------------------------------------------
 async function boot() {
   initProviderPanels();
   state.memories = loadLocalMemories();
@@ -290,4 +597,5 @@ async function boot() {
     setStatus(data.ok ? "Servidor local ligado." : "UI estatica sem API.");
   } catch { setStatus("Abre via python3 server.py para exportar ficheiros."); }
 }
+
 boot();

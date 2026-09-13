@@ -97,15 +97,23 @@
           <div class="files" id="convList"></div>
         </section>
         <section class="panel" id="panel-settings">
-          <div class="notice">As chaves ficam so neste browser (localStorage) e vao ao servidor local em 127.0.0.1.</div>
+          <div class="notice">As chaves ficam guardadas neste browser (localStorage) e sao enviadas ao servidor local em 127.0.0.1. Podes definir uma palavra-passe mestre para cifrar com AES-GCM.</div>
+          <div style="margin: 8px 0;">
+            <label>Palavra-passe mestre (AES-GCM de 256 bits, opcional)</label>
+            <input id="masterPassword" type="password" placeholder="Deixa em branco se nao quiseres senha mestre…" autocomplete="off" spellcheck="false" />
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+              <span id="cryptoStatus" style="font-size:12px;color:var(--muted)">Estado: Nao cifrado</span>
+              <button class="btn" id="btnUnlockKeys" type="button" style="display:none;">Desbloquear</button>
+            </div>
+          </div>
           <label>Qwen / DashScope</label>
-          <input id="key-qwen" type="password" placeholder="sk-…" autocomplete="off" />
+          <input id="key-qwen" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
           <label>DeepSeek</label>
-          <input id="key-deepseek" type="password" placeholder="sk-…" autocomplete="off" />
+          <input id="key-deepseek" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
           <label>GLM / Z.ai / BigModel</label>
-          <input id="key-glm" type="password" placeholder="…" autocomplete="off" />
+          <input id="key-glm" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
           <label>Mistral</label>
-          <input id="key-mistral" type="password" placeholder="…" autocomplete="off" />
+          <input id="key-mistral" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
           <div class="row">
             <button class="btn primary" id="btnSaveKeys">Guardar chaves</button>
             <button class="btn danger" id="btnClearKeys">Apagar chaves</button>

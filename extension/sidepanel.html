@@ -11,11 +11,12 @@
     <p>Memória partilhada entre Qwen, DeepSeek, GLM e Mistral. Injecção no chat oficial + exportação de código.</p>
   </header>
 
-  <nav class="tabs">
-    <button class="tab on" data-view="mem">Memórias</button>
-    <button class="tab" data-view="chats">Chats</button>
-    <button class="tab" data-view="send">Enviar</button>
-    <button class="tab" data-view="hub">Hub</button>
+  <nav class="tabs" role="tablist">
+    <button class="tab on" data-view="mem" role="tab" type="button">Memórias</button>
+    <button class="tab" data-view="chats" role="tab" type="button">Chats</button>
+    <button class="tab" data-view="send" role="tab" type="button">Enviar</button>
+    <button class="tab" data-view="files" role="tab" type="button">Ficheiros</button>
+    <button class="tab" data-view="hub" role="tab" type="button">Hub</button>
   </nav>
 
   <section id="view-mem" class="view on">
@@ -48,8 +49,17 @@
     <p class="note">Abre primeiro o chat no browser (login feito). Depois escolhe o destino.</p>
   </section>
 
+  <section id="view-files" class="view">
+    <p class="note">Ficheiros gerados pelo AI Hub (Markdown, DOCX, XLSX, PDF, código).</p>
+    <div class="row">
+      <button id="refreshFiles" class="primary" type="button">Atualizar lista</button>
+      <button id="openDownloads" type="button">Abrir Downloads do Chrome</button>
+    </div>
+    <div id="filesList"></div>
+  </section>
+
   <section id="view-hub" class="view">
-    <p class="note">O service worker fala com o servidor Python. Sem isto, DOCX/PDF/XLSX não são gerados.</p>
+    <p class="note">Servidor Python local (opcional). A extensão agora gera DOCX, XLSX, PDF e ZIP autonomamente sem necessitar de servidor local.</p>
     <input id="hubUrl" placeholder="http://127.0.0.1:8765" />
     <div class="row">
       <button id="saveHub" class="primary">Guardar URL</button>
@@ -59,6 +69,7 @@
     <p class="note" id="hubStatus">Ainda não testado.</p>
   </section>
 
+  <script src="lib/exporter.js"></script>
   <script src="sidepanel.js"></script>
 </body>
 </html>

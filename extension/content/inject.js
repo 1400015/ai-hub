@@ -1,7 +1,27 @@
+// ============================================================================
+// AI Hub Content Script - Injector & Interação com a Página
+// Injeta a barra de ferramentas (Dock), atalhos de exportação e suporte a memórias.
+// ============================================================================
 (() => {
-  const site = aihubCurrentSite();
+  // --------------------------------------------------------------------------
+  // BLOCO 1: Proteção contra Dupla Injeção e Identificação do Site Atual
+  // O QUE É SUPOSTO ACONTECER:
+  // - Impede que o script seja injetado e executado múltiplas vezes no mesmo separador.
+  // - Determina qual é o chat ativo (Qwen, DeepSeek, GLM, Mistral) através de sites.js.
+  // - Se o domínio atual não for um chat suportado, interrompe a execução de imediato.
+  // --------------------------------------------------------------------------
+  if (window.__aihubInjected) return;
+  window.__aihubInjected = true;
+
+  const site = typeof aihubCurrentSite === "function" ? aihubCurrentSite() : null;
   if (!site) return;
 
+  // --------------------------------------------------------------------------
+  // BLOCO 2: Dicionário de Mapeamento de Linguagens para Extensões de Ficheiro
+  // O QUE É SUPOSTO ACONTECER:
+  // - Mapeia os identificadores de sintaxe de blocos markdown (ex: ```python)
+  //   para a respetiva extensão física de ficheiro (.py, .js, .html, etc.).
+  // --------------------------------------------------------------------------
   const LANG_EXT = {
     python: "py", py: "py", java: "java", javascript: "js", js: "js",
     typescript: "ts", ts: "ts", html: "html", css: "css", json: "json",
@@ -11,6 +31,13 @@
     swift: "swift", ruby: "rb", php: "php", r: "r", text: "txt",
   };
 
+  // --------------------------------------------------------------------------
+  // BLOCO 3: Deteção de Visibilidade e Localização de Elementos no DOM
+  // O QUE É SUPOSTO ACONTECER:
+  // - visible(el): Confirma se o elemento tem dimensões reais e não está oculto por CSS.
+  // - findFirst(selectors): Percorre a lista de seletores do site e devolve o último nó visível.
+  // - findComposer(): Encontra a caixa de texto onde o utilizador escreve mensagens.
+  // --------------------------------------------------------------------------
   function visible(el) {
     if (!el) return false;
     const r = el.getBoundingClientRect();
@@ -30,6 +57,15 @@
     return findFirst(site.composers) || findFirst(["textarea", '[contenteditable="true"]']);
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 4: Injeção de Texto em Inputs Controlados (React / Vue / Next.js)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Contorna os wrappers virtuais de frameworks SPA invocando o setter nativo
+  //   no protótipo HTMLTextAreaElement ou HTMLInputElement.
+  // - Dispara eventos "input" e "change" com bubbles=true para que o React atualize
+  //   o seu estado interno e o texto não desapareça ao submeter o formulário.
+  // - Fornece suporte de fallback a campos contenteditable (usados em chats modernos).
+  // --------------------------------------------------------------------------
   function setComposerText(el, text, mode) {
     if (!el) return false;
     el.focus();
@@ -69,6 +105,12 @@
     return true;
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 5: Gestão e Carregamento de Memórias Persistentes
+  // O QUE É SUPOSTO ACONTECER:
+  // - memoryBlock: Formata as memórias ativas num bloco de prompt estruturado.
+  // - loadMemories: Lê assincronamente as memórias gravadas em chrome.storage.local.
+  // --------------------------------------------------------------------------
   function memoryBlock(memories) {
     const act = (memories || []).filter((m) => m.active);
     if (!act.length) return "";
@@ -85,6 +127,12 @@
     });
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 6: Utilitários de Extração de Código e Timestamp
+  // O QUE É SUPOSTO ACONTECER:
+  // - parseFences: Deteta blocos delimitados por ```linguagem ... ``` no texto da IA.
+  // - stamp: Gera nomes de ficheiro únicos com carimbo temporal ISO legível.
+  // --------------------------------------------------------------------------
   function parseFences(text) {
     const re = /```([A-Za-z0-9_+-]*)\s*\n([\s\S]*?)```/g;
     const out = [];
@@ -95,6 +143,17 @@
     return out;
   }
 
+  function stamp(name, ext) {
+    const t = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    return name + "-" + t + "." + ext;
+  }
+
+  // --------------------------------------------------------------------------
+  // BLOCO 7: Mensagens IPC com o Background Service Worker
+  // O QUE É SUPOSTO ACONTECER:
+  // - sendMsg: Envia uma mensagem via chrome.runtime.sendMessage encapsulada numa Promise.
+  // - downloadText: Solicita ao service worker para descarregar texto puro via API downloads.
+  // --------------------------------------------------------------------------
   function sendMsg(payload) {
     return new Promise((resolve) => {
       chrome.runtime.sendMessage(payload, (res) => resolve(res || { ok: false, error: chrome.runtime.lastError?.message }));
@@ -105,22 +164,52 @@
     return sendMsg({ type: "download", filename, content, mime: mime || "text/plain" });
   }
 
-  async function exportViaHub(format, content, title) {
-    const res = await sendMsg({ type: "hub-export", format, content, title });
-    if (res && res.ok) return res;
+  // --------------------------------------------------------------------------
+  // BLOCO 8: Exportação Nativa no Cliente (Zero-Install)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Utiliza window.AIHubExporter para gerar DOCX, XLSX, PDF ou ZIP localmente.
+  // - Se o formato for texto plano (md, js, py, html), descarrega diretamente.
+  // - Garante que a exportação funciona mesmo sem o servidor Python estar a correr.
+  // --------------------------------------------------------------------------
+  async function exportFileNative(format, content, title) {
+    const baseTitle = title || site.name + " Resposta";
     const ext = (LANG_EXT[format] || format || "txt").replace(/^\./, "");
-    if (["docx", "xlsx", "xls", "pdf"].includes(format)) {
-      throw new Error(res?.error || "Hub local offline. Corre python3 server.py");
+    const filename = stamp(site.id + "-" + ext, ext);
+
+    if (window.AIHubExporter) {
+      if (format === "docx") {
+        const blob = window.AIHubExporter.generateDocx(baseTitle, content);
+        window.AIHubExporter.triggerDownload(blob, filename);
+        return { ok: true, clientSide: true };
+      }
+      if (format === "xlsx" || format === "xls") {
+        const blob = window.AIHubExporter.generateXlsx(baseTitle, content);
+        window.AIHubExporter.triggerDownload(blob, filename);
+        return { ok: true, clientSide: true };
+      }
+      if (format === "pdf") {
+        const blob = window.AIHubExporter.generatePdf(baseTitle, content);
+        window.AIHubExporter.triggerDownload(blob, filename);
+        return { ok: true, clientSide: true };
+      }
+      if (format === "zip") {
+        const blob = window.AIHubExporter.generateZip(content);
+        window.AIHubExporter.triggerDownload(blob, filename);
+        return { ok: true, clientSide: true };
+      }
     }
-    await downloadText(stamp(title || site.id, ext), content);
-    return { ok: true, fallback: true };
+
+    // Fallback para formatos textuais simples
+    await downloadText(filename, content);
+    return { ok: true, clientSide: true };
   }
 
-  function stamp(name, ext) {
-    const t = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    return name + "-" + t + "." + ext;
-  }
-
+  // --------------------------------------------------------------------------
+  // BLOCO 9: Recolha de Texto Recente da Resposta da IA (Harvest)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Inspeciona o DOM procurando as mensagens do assistente ou blocos de código.
+  // - Concatena o texto das mensagens mais recentes para preparar a exportação.
+  // --------------------------------------------------------------------------
   function harvestAssistantText() {
     const blocks = [...document.querySelectorAll("pre, .markdown, .md-code, [class*='markdown']")];
     const texts = blocks.map((b) => b.innerText || "").filter((t) => t.trim().length > 20);
@@ -129,6 +218,33 @@
     return articles.map((a) => a.innerText || "").filter((t) => t.length > 40).slice(-3).join("\n\n");
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 10: Exportação Híbrida (Tenta Nativo, Faz Fallback ao Hub)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Chamado quando o utilizador clica em "guardar" num bloco de código específico.
+  // - Se o gerador nativo estiver ativo, descarrega diretamente pelo browser.
+  // - Caso contrário, tenta guardar via servidor local Python.
+  // --------------------------------------------------------------------------
+  async function exportViaHub(format, content, title) {
+    const ext = (LANG_EXT[format] || format || "txt").replace(/^\./, "");
+    if (window.AIHubExporter) {
+      try {
+        return await exportFileNative(format, content, title);
+      } catch (_) {}
+    }
+    const res = await sendMsg({ type: "hub-export", format, content, title });
+    if (res && res.ok) return res;
+    await downloadText(stamp(title || site.id, ext), content);
+    return { ok: true, fallback: true };
+  }
+
+  // --------------------------------------------------------------------------
+  // BLOCO 11: Exportação Coletiva da Conversa (Harvest Export)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Se kind === "scan": Extrai todos os blocos de código da conversa e,
+  //   se houver múltiplos, empacota-os num único ficheiro ZIP descarregável.
+  // - Se kind === "docx"|"pdf"|"xlsx"|"html"|"md": Gera o documento correspondente.
+  // --------------------------------------------------------------------------
   async function exportHarvest(kind) {
     const raw = harvestAssistantText();
     if (!raw.trim()) {
@@ -139,34 +255,56 @@
       if (kind === "scan") {
         const fences = parseFences(raw);
         if (!fences.length) {
-          await exportViaHub("md", raw, site.id + "-resposta");
-          toast("Sem blocos code — gravei Markdown no hub/browser.");
+          await exportFileNative("md", raw, site.name + " Resposta");
+          toast("Sem blocos de codigo — descarregado Markdown.");
+          return;
+        }
+        if (fences.length > 1 && window.AIHubExporter) {
+          const files = fences.map((f, i) => ({
+            name: site.id + "-" + (f.lang || "code") + "-" + (i + 1) + "." + (LANG_EXT[f.lang] || "txt"),
+            content: f.content,
+          }));
+          const zipBlob = window.AIHubExporter.generateZip(files);
+          window.AIHubExporter.triggerDownload(zipBlob, stamp(site.id + "-codigo", "zip"));
+          toast("Pacote ZIP gerado com " + fences.length + " ficheiros!");
           return;
         }
         for (let i = 0; i < fences.length; i++) {
           const f = fences[i];
           const ext = LANG_EXT[f.lang] || "txt";
-          await exportViaHub(ext, f.content, site.id + "-" + f.lang + "-" + (i + 1));
+          await exportFileNative(ext, f.content, site.id + "-" + f.lang + "-" + (i + 1));
         }
-        toast(fences.length + " bloco(s) enviados ao hub local.");
+        toast(fences.length + " ficheiro(s) descarregados!");
         return;
       }
       if (kind === "html") {
         const html = "<!doctype html><meta charset=\"utf-8\"><title>" + site.name + "</title><pre>" + escapeHtml(raw) + "</pre>";
-        await exportViaHub("html", html, site.id + "-chat");
+        await exportFileNative("html", html, site.name + " Chat");
       } else {
-        await exportViaHub(kind, raw, site.id + "-chat");
+        await exportFileNative(kind, raw, site.name + " Chat");
       }
-      toast("Exportado via hub local (ou download se o hub estiver offline).");
+      toast("Ficheiro " + kind.toUpperCase() + " descarregado com sucesso!");
     } catch (err) {
       toast(err.message || "Falha ao exportar");
     }
   }
 
   function escapeHtml(s) {
-    return String(s).replace(/[&<>]/g, (c) => ({ "&": "&", "<": "<", ">": ">" }[c]));
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c]));
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 12: Notificações Flutuantes Visuais (Toast)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Cria dinamicamente um elemento de notificação no canto da página.
+  // - Apresenta mensagens de sucesso ou aviso ao utilizador que desaparecem após 2.4s.
+  // --------------------------------------------------------------------------
   function toast(msg) {
     let el = document.getElementById("aihub-toast");
     if (!el) {
@@ -179,6 +317,13 @@
     setTimeout(() => el.classList.remove("show"), 2400);
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 13: Anotação Automática de Blocos de Código (<pre><code>)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Localiza blocos de código renderizados na página.
+  // - Injeta um botão "guardar" no canto superior direito de cada bloco de código.
+  // - Ao clicar, descarrega diretamente o ficheiro com a extensão correta (.js, .py, etc.).
+  // --------------------------------------------------------------------------
   function markCodeBlocks() {
     document.querySelectorAll("pre").forEach((pre) => {
       if (pre.dataset.aihubBtn) return;
@@ -207,6 +352,11 @@
     });
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 14: Injeção de Memória na Caixa de Texto Ativa
+  // O QUE É SUPOSTO ACONTECER:
+  // - Carrega as memórias ativas e coloca-as no início da caixa de texto do chat.
+  // --------------------------------------------------------------------------
   async function injectMemory(mode, extra) {
     const memories = await loadMemories();
     const block = memoryBlock(memories);
@@ -225,11 +375,20 @@
     toast(mode === "replace" ? "Memoria colocada no campo." : "Memoria acrescentada.");
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 15: Construção do Dock Flutuante nos Chats Web
+  // O QUE É SUPOSTO ACONTECER:
+  // - Injeta um widget flutuante no documento com botões rápidos:
+  //     * Inserir memória / Substituir campo
+  //     * Exportações: Código -> ZIP, Chat -> MD / DOCX / PDF / XLSX / HTML
+  //     * Painel lateral e botão direto "📁 Ficheiros"
+  // - Consulta o estado de saúde do hub local e atualiza o indicador de status.
+  // --------------------------------------------------------------------------
   function buildDock() {
     if (document.getElementById("aihub-dock")) return;
     const dock = document.createElement("div");
     dock.id = "aihub-dock";
-    dock.innerHTML = '<div class="aihub-head"><strong>AI Hub \u00b7 ' + site.name + '</strong><button type="button" id="aihub-min">–</button></div><div class="aihub-body"><p class="aihub-hint" id="aihub-hub-status">A procurar hub local…</p><div class="aihub-row"><button type="button" data-act="prepend">Inserir memoria</button><button type="button" data-act="replace">Substituir campo</button></div><div class="aihub-row"><button type="button" data-act="scan">Codigo → ficheiros</button><button type="button" data-act="md">Chat → MD</button></div><div class="aihub-row"><button type="button" data-act="docx">Chat → DOCX</button><button type="button" data-act="pdf">Chat → PDF</button></div><div class="aihub-row"><button type="button" data-act="xlsx">Chat → XLSX</button><button type="button" data-act="html">Chat → HTML</button></div><div class="aihub-row"><button type="button" data-act="panel">Painel</button></div></div>';
+    dock.innerHTML = '<div class="aihub-head"><strong>AI Hub \u00b7 ' + site.name + '</strong><button type="button" id="aihub-min">–</button></div><div class="aihub-body"><p class="aihub-hint" id="aihub-hub-status">A procurar hub local…</p><div class="aihub-row"><button type="button" data-act="prepend">Inserir memoria</button><button type="button" data-act="replace">Substituir campo</button></div><div class="aihub-row"><button type="button" data-act="scan">Codigo → ficheiros</button><button type="button" data-act="md">Chat → MD</button></div><div class="aihub-row"><button type="button" data-act="docx">Chat → DOCX</button><button type="button" data-act="pdf">Chat → PDF</button></div><div class="aihub-row"><button type="button" data-act="xlsx">Chat → XLSX</button><button type="button" data-act="html">Chat → HTML</button></div><div class="aihub-row"><button type="button" data-act="panel">Painel</button><button type="button" data-act="files">📁 Ficheiros</button></div></div>';
     document.documentElement.appendChild(dock);
     dock.querySelector("#aihub-min").addEventListener("click", () => dock.classList.toggle("min"));
     dock.addEventListener("click", async (ev) => {
@@ -237,35 +396,65 @@
       if (!act) return;
       if (act === "prepend") await injectMemory("append");
       if (act === "replace") await injectMemory("replace");
-      if (act === "scan") exportHarvest("scan");
-      if (act === "md") exportHarvest("md");
-      if (act === "html") exportHarvest("html");
-      if (act === "docx") exportHarvest("docx");
-      if (act === "pdf") exportHarvest("pdf");
-      if (act === "xlsx") exportHarvest("xlsx");
+      if (act === "scan") await exportHarvest("scan");
+      if (act === "md") await exportHarvest("md");
+      if (act === "html") await exportHarvest("html");
+      if (act === "docx") await exportHarvest("docx");
+      if (act === "pdf") await exportHarvest("pdf");
+      if (act === "xlsx") await exportHarvest("xlsx");
       if (act === "panel") chrome.runtime.sendMessage({ type: "open-sidepanel" });
+      if (act === "files") {
+        await chrome.storage.local.set({ targetView: "files" });
+        chrome.runtime.sendMessage({ type: "open-sidepanel" });
+      }
     });
     sendMsg({ type: "hub-health" }).then((res) => {
       const el = document.getElementById("aihub-hub-status");
       if (!el) return;
       el.textContent = res.ok
-        ? "Hub local ligado — DOCX/PDF/XLSX gravam em exports/."
-        : "Hub offline. Corre python3 local/server.py para Office.";
+        ? "AI Hub Autónomo (Hub local conectado)."
+        : "AI Hub Autónomo — DOCX/PDF/XLSX/ZIP gerados diretamente no browser!";
     });
   }
 
+  // --------------------------------------------------------------------------
+  // BLOCO 16: Receptor de Mensagens Enviadas pelo Popup ou Painel Lateral
+  // O QUE É SUPOSTO ACONTECER:
+  // - Escuta ordens externas como "inject" (inserir memória), "export" e "ping".
+  // --------------------------------------------------------------------------
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
     if (msg?.type === "inject") {
-      injectMemory(msg.mode || "append", msg.text || "").then(() => sendResponse({ ok: true }));
+      injectMemory(msg.mode || "append", msg.text || "").then(() => {
+        if (msg.submit && site.send) {
+          setTimeout(() => {
+            const btn = findFirst(site.send);
+            if (btn) btn.click();
+          }, 350);
+        }
+        sendResponse({ ok: true });
+      });
       return true;
     }
     if (msg?.type === "export") {
-      exportHarvest(msg.kind || "scan");
-      sendResponse({ ok: true });
+      exportHarvest(msg.kind || "scan")
+        .then(() => sendResponse({ ok: true }))
+        .catch((err) => sendResponse({ ok: false, error: err.message }));
+      return true;
     }
-    if (msg?.type === "ping") sendResponse({ ok: true, site: site.id });
+    if (msg?.type === "ping") {
+      sendResponse({ ok: true, site: site.id });
+      return true;
+    }
   });
 
+  // --------------------------------------------------------------------------
+  // BLOCO 17: Inicialização e Monitorização Contínua de Mutações (Debounced)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Monta a interface flutuante (dock) no chat.
+  // - Anota os blocos de código já presentes.
+  // - Configura um MutationObserver com debounce de 300ms para monitorizar novas
+  //   mensagens recebidas via streaming de IA sem sobrecarregar a thread do browser.
+  // --------------------------------------------------------------------------
   buildDock();
   markCodeBlocks();
   let debounceTimer = null;

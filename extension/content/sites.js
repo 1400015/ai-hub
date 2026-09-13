@@ -1,11 +1,31 @@
-/* Adaptadores por site. Selectores são heurísticos — as UIs mudam. */
+// ============================================================================
+// AI Hub - Adaptadores e Seletores DOM por Plataforma de IA
+// Define a configuração de injeção heurística para cada chat suportado.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// BLOCO 1: Registo de Plataformas e Mapeamento de Seletores de Interface
+// O QUE É SUPOSTO ACONTECER:
+// - Cada entrada define o identificador do serviço, o teste de hostname,
+//   a URL oficial e uma lista ordenada por prioridade dos seletores CSS
+//   da caixa de mensagem ("composers") e do botão de envio ("send").
+// - Como as interfaces das IAs atualizam frequentemente, os arrays contêm
+//   seletores de fallback para que a extensão continue a funcionar mesmo que
+//   uma classe CSS mude de nome.
+// ----------------------------------------------------------------------------
 const AIHUB_SITES = [
   {
     id: "qwen",
     name: "Qwen",
     test: (h) => h.includes("chat.qwen.ai") || h.includes("chat.qwenlm.ai"),
     url: "https://chat.qwen.ai",
-    composers: ["#chat-input", "textarea#chat-input", "textarea[placeholder]", "textarea", '[contenteditable="true"]'],
+    composers: [
+      "#chat-input",
+      "textarea#chat-input",
+      "textarea[placeholder]",
+      "textarea",
+      '[contenteditable="true"]',
+    ],
     send: [
       "button#send-button",
       "button[aria-label*='Send' i]",
@@ -42,7 +62,11 @@ const AIHUB_SITES = [
       '[contenteditable="true"][role="textbox"]',
       '[contenteditable="true"]',
     ],
-    send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[class*='send']"],
+    send: [
+      "button[type='submit']",
+      "button[aria-label*='Send' i]",
+      "button[class*='send']",
+    ],
   },
   {
     id: "mistral",
@@ -58,6 +82,13 @@ const AIHUB_SITES = [
   },
 ];
 
+// ----------------------------------------------------------------------------
+// BLOCO 2: Deteção Ativa do Site em Execução
+// O QUE É SUPOSTO ACONTECER:
+// - Avalia a propriedade location.hostname do separador do browser.
+// - Executa a função de teste de cada site registado e retorna a configuração
+//   do adaptador correspondente (ou null se estiver num site não suportado).
+// ----------------------------------------------------------------------------
 function aihubCurrentSite() {
   const host = location.hostname;
   return AIHUB_SITES.find((s) => s.test(host)) || null;

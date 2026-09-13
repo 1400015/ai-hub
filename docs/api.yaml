@@ -250,7 +250,7 @@ components:
       properties:
         format:
           type: string
-          enum: [md, txt, py, js, html, docx, xlsx, pdf, zip]
+          enum: [md, markdown, txt, py, python, java, js, ts, html, css, json, csv, sql, xml, yaml, yml, sh, rs, go, c, cpp, kt, swift, rb, php, r, docx, xlsx, xls, pdf, zip]
         content:
           type: string
         title:
