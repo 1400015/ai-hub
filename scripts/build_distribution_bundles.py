@@ -27,6 +27,8 @@ INSTALL_INSTRUCTIONS = """======================================================
 
 A extensao AI Hub permite partilhar memoria, injetar contexto e exportar
 documentos (DOCX, XLSX, PDF, ZIP e codigo) nos chats oficiais de:
+- ChatGPT (chatgpt.com / chat.openai.com)
+- Claude (claude.ai)
 - DeepSeek (chat.deepseek.com)
 - Qwen (chat.qwen.ai)
 - GLM / Z.ai (chat.z.ai)
@@ -67,9 +69,10 @@ ficheiros no disco rigido fora do navegador ou aceder ao painel web http://127.0
 --------------------------------------------------------------------------------
 COMO USAR NO DIA A DIA
 --------------------------------------------------------------------------------
-1. Abra qualquer chat suportado (ex: https://chat.deepseek.com).
+1. Abra qualquer chat suportado (ex: https://chatgpt.com, https://claude.ai, etc.).
 2. Vera a barra flutuante do AI Hub no canto do ecra:
-   - "Inserir memoria" -> Cola as suas instrucoes permanentes na mensagem.
+   - "🧠 Aprender" -> Analisa e memoriza pontos essenciais da conversa automaticamente.
+   - "Inserir memoria" -> Injeta memórias com ordenacao semantica inteligente.
    - "Chat -> DOCX / PDF / XLSX" -> Descarrega a conversa instantaneamente.
    - "Codigo -> ficheiros" -> Se houver codigo, gera um pacote .zip com todos os ficheiros.
    - "📁 Ficheiros" -> Atalho de 1 clique para ver os ficheiros criados.

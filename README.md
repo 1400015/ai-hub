@@ -1,9 +1,13 @@
 # AI Hub
 
-Ferramentas locais para trabalhar com **Qwen**, **DeepSeek**, **GLM / Z.ai** e **Mistral**:
+Ferramentas locais para trabalhar com **ChatGPT**, **Claude**, **Qwen**, **DeepSeek**, **GLM / Z.ai** e **Mistral**:
 
-1. `local/` — servidor Python (`http://127.0.0.1:8765`) com memória, proxy API e exportação DOCX / XLSX / PDF / código
-2. `extension/` — extensão Chrome/Edge/Brave que injecta memória nos chats oficiais e envia o texto ao hub
+1. `local/` — servidor Python (`http://127.0.0.1:8765`) com persistência de memórias, proxy de API (com suporte a SSE streaming, OpenAI e Anthropic) e exportações Office/PDF.
+2. `extension/` — extensão Chrome/Edge/Brave 100% autónoma (Manifest V3) com:
+   - **Injeção Inteligente de Memória:** Ordena o contexto automaticamente por relevância semântica em função da pergunta.
+   - **Auto-Harvesting (🧠 Aprender):** Analisa e memoriza pontos essenciais da conversa diretamente no chat.
+   - **Geração Nativa (Zero-Install):** Exporta DOCX, XLSX, PDF, ZIP e código diretamente pelo navegador sem dependências.
+   - **Suporte Multimodelos:** Integração nos chats e chamadas diretas às APIs sem bloqueios de CORS.
 
 ## Arranque rápido
 

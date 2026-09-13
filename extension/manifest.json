@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "AI Hub Memória",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "minimum_chrome_version": "114",
-  "description": "Memória partilhada, injecção de prompt e exportação de código em Qwen, DeepSeek, GLM e Mistral.",
+  "description": "Memória partilhada, injeção inteligente e exportação em Qwen, DeepSeek, ChatGPT, Claude, GLM e Mistral.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -25,6 +25,9 @@
   "background": {
     "service_worker": "background.js"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "permissions": [
     "storage",
     "sidePanel",
@@ -38,6 +41,9 @@
     "https://chat.qwen.ai/*",
     "https://chat.qwenlm.ai/*",
     "https://chat.deepseek.com/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
     "https://chat.z.ai/*",
     "https://chatglm.cn/*",
     "https://*.chatglm.cn/*",
@@ -48,6 +54,8 @@
     "https://api.z.ai/*",
     "https://open.bigmodel.cn/*",
     "https://api.mistral.ai/*",
+    "https://api.openai.com/*",
+    "https://api.anthropic.com/*",
     "http://127.0.0.1/*",
     "http://localhost/*"
   ],
@@ -66,6 +74,9 @@
         "https://chat.qwen.ai/*",
         "https://chat.qwenlm.ai/*",
         "https://chat.deepseek.com/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
         "https://chat.z.ai/*",
         "https://chatglm.cn/*",
         "https://*.chatglm.cn/*",

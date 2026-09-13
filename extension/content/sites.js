@@ -80,6 +80,46 @@ const AIHUB_SITES = [
     ],
     send: ["button[aria-label*='Send' i]", "button[type='submit']"],
   },
+  {
+    id: "chatgpt",
+    name: "ChatGPT",
+    test: (h) => h.includes("chatgpt.com") || h.includes("chat.openai.com"),
+    url: "https://chatgpt.com",
+    composers: [
+      "#prompt-textarea",
+      "textarea#prompt-textarea",
+      "div#prompt-textarea",
+      'div[contenteditable="true"]#prompt-textarea',
+      'textarea[placeholder*="Message" i]',
+      'textarea[placeholder*="mensagem" i]',
+      "textarea",
+      '[contenteditable="true"]',
+    ],
+    send: [
+      'button[data-testid="send-button"]',
+      "button[aria-label*='Send' i]",
+      "button[aria-label*='Enviar' i]",
+      "button[class*='send']",
+    ],
+  },
+  {
+    id: "claude",
+    name: "Claude",
+    test: (h) => h.includes("claude.ai"),
+    url: "https://claude.ai",
+    composers: [
+      'div.ProseMirror[contenteditable="true"]',
+      'div[contenteditable="true"]',
+      '[contenteditable="true"]',
+      "textarea",
+    ],
+    send: [
+      "button[aria-label*='Send Message' i]",
+      "button[aria-label*='Send' i]",
+      "button[aria-label*='Enviar' i]",
+      'button[type="submit"]',
+    ],
+  },
 ];
 
 // ----------------------------------------------------------------------------

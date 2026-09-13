@@ -1,6 +1,6 @@
 # Manual — AI Hub Memória
 
-Extensão + servidor local para Qwen, DeepSeek, GLM/Z.ai e Mistral.
+Extensão + servidor local para ChatGPT, Claude, Qwen, DeepSeek, GLM/Z.ai e Mistral.
 Repo: https://github.com/1400015/ai-hub
 
 Não está na Chrome Web Store. Instala-se em **modo de programador** (pasta descompactada). O processo é o mesmo nos três browsers Chromium; só muda o endereço das extensões.
@@ -97,12 +97,12 @@ Não voltas a «instalar». Em `chrome://extensions/` (ou equivalente) clica em 
 
 ### Arranque
 
-1. `python3 local/server.py`
+1. `python3 local/server.py` (opcional, para exportações e API local)
 2. Browser com a extensão ligada
-3. Login no chat oficial
+3. Login no chat oficial (ChatGPT, Claude, DeepSeek, Qwen, GLM ou Mistral)
 4. No canto **inferior direito** aparece o dock **AI Hub**
 
-Se o dock não aparecer: recarrega a página do chat. A extensão só corre nos URLs dos quatro modelos.
+Se o dock não aparecer: recarrega a página do chat. A extensão corre nos URLs de todos os modelos suportados.
 
 ### Memórias
 
@@ -113,12 +113,13 @@ Painel (dock → Painel, ou popup → Abrir painel lateral):
 3. **Guardar**
 4. Marca **activa** as que devem ir para o prompt
 
-Ficam em `chrome.storage.local` e são as **mesmas** nos quatro chats.
+Ficam em `chrome.storage.local` e são partilhadas por todos os chats.
 
-### Injectar no chat oficial
+### Injetar no chat oficial
 
-- **Inserir memória** — acrescenta `[MEMÓRIA PERSISTENTE]` à caixa
-- **Substituir campo** — põe só a memória
+- **🧠 Aprender** — analisa a conversa recente, extrai conclusões/factos e grava uma nova memória persistente automaticamente.
+- **Inserir memória** — injeta as memórias ativas, ordenadas inteligentemente por relevância semântica em função do que já estiver escrito.
+- **Substituir campo** — substitui o texto do campo apenas pelo bloco de memória.
 
 ### Exportar
 
@@ -126,10 +127,11 @@ Cada `<pre>` ganha um botão **guardar**.
 
 | Botão | Efeito |
 |---|---|
-| **guardar** no bloco | Envia esse código a `local/exports/` |
-| **Código → ficheiros** | Percorre os blocos ``` da resposta |
-| **Chat → MD / HTML** | Texto, mesmo sem hub |
-| **Chat → DOCX / PDF / XLSX** | Exige `server.py` a correr |
+| **guardar** no bloco | Descarrega esse bloco de código (.py, .js, etc.) |
+| **Código → ficheiros** | Percorre os blocos de código e gera ZIP se houver múltiplos |
+| **Chat → MD / HTML** | Exporta o texto da conversa |
+| **Chat → DOCX / PDF / XLSX** | Gera documentos nativamente no browser (ou via servidor) |
+| **📁 Ficheiros** | Atalho direto de 1 clique para aceder aos ficheiros gerados |
 
 ### Hub web
 

@@ -106,17 +106,38 @@
   }
 
   // --------------------------------------------------------------------------
-  // BLOCO 5: Gestão e Carregamento de Memórias Persistentes
+  // BLOCO 5: Gestão e Carregamento de Memórias Persistentes com Relevância
   // O QUE É SUPOSTO ACONTECER:
-  // - memoryBlock: Formata as memórias ativas num bloco de prompt estruturado.
+  // - scoreRelevance: Avalia a sobreposição semântica entre uma memória e o texto.
+  // - memoryBlock: Formata memórias ativas ordenadas por afinidade temática.
   // - loadMemories: Lê assincronamente as memórias gravadas em chrome.storage.local.
   // --------------------------------------------------------------------------
-  function memoryBlock(memories) {
+  function scoreRelevance(mem, query) {
+    if (!query || !query.trim()) return 1;
+    const words = query.toLowerCase().match(/\b[\p{L}\p{N}]{3,}\b/gu) || [];
+    if (!words.length) return 1;
+    let score = 0;
+    const title = (mem.title || "").toLowerCase();
+    const body = (mem.body || "").toLowerCase();
+    const tags = (Array.isArray(mem.tags) ? mem.tags.join(" ") : "").toLowerCase();
+    for (const w of words) {
+      if (title.includes(w)) score += 5;
+      if (tags.includes(w)) score += 4;
+      if (body.includes(w)) score += 1;
+    }
+    return score;
+  }
+
+  function memoryBlock(memories, query) {
     const act = (memories || []).filter((m) => m.active);
     if (!act.length) return "";
+    let sorted = act;
+    if (query && query.trim()) {
+      sorted = [...act].sort((a, b) => scoreRelevance(b, query) - scoreRelevance(a, query));
+    }
     return (
       "[MEMORIA PERSISTENTE]\n" +
-      act.map((m) => "### " + m.title + "\n" + m.body).join("\n\n") +
+      sorted.map((m) => "### " + m.title + "\n" + m.body).join("\n\n") +
       "\n[FIM DA MEMORIA]\n\n"
     );
   }
@@ -353,18 +374,24 @@
   }
 
   // --------------------------------------------------------------------------
-  // BLOCO 14: Injeção de Memória na Caixa de Texto Ativa
+  // BLOCO 14: Injeção de Memória Inteligente na Caixa de Texto Ativa
   // O QUE É SUPOSTO ACONTECER:
-  // - Carrega as memórias ativas e coloca-as no início da caixa de texto do chat.
+  // - Avalia o texto já escrito pelo utilizador na caixa de mensagem.
+  // - Carrega as memórias ativas e ordena-as por afinidade com a pergunta.
+  // - Injeta o bloco formatado no início ou no fim do campo de texto.
   // --------------------------------------------------------------------------
   async function injectMemory(mode, extra) {
-    const memories = await loadMemories();
-    const block = memoryBlock(memories);
     const composer = findComposer();
     if (!composer) {
       toast("Nao encontrei a caixa de texto. A UI pode ter mudado.");
       return;
     }
+    const currentVal = (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement)
+      ? composer.value
+      : (composer.innerText || composer.textContent || "");
+    const query = (extra || currentVal || "").trim();
+    const memories = await loadMemories();
+    const block = memoryBlock(memories, query);
     const user = extra || "";
     const text = (block + user).trim();
     if (!text) {
@@ -372,14 +399,49 @@
       return;
     }
     setComposerText(composer, text, mode);
-    toast(mode === "replace" ? "Memoria colocada no campo." : "Memoria acrescentada.");
+    toast(mode === "replace" ? "Memoria colocada no campo." : "Memoria inteligente inserida.");
+  }
+
+  // --------------------------------------------------------------------------
+  // BLOCO 14B: Aprendizagem e Resumo Automático de Sessões (Auto-Harvesting)
+  // O QUE É SUPOSTO ACONTECER:
+  // - Extrai a conversação recente com harvestAssistantText().
+  // - Sintetiza os pontos-chave e cria automaticamente uma nova memória persistente.
+  // - Guarda em chrome.storage.local e sincroniza em background com o hub local.
+  // --------------------------------------------------------------------------
+  async function learnFromChat() {
+    const raw = harvestAssistantText();
+    if (!raw || raw.trim().length < 25) {
+      toast("Texto insuficiente no chat para extrair memoria.");
+      return;
+    }
+    toast("A analisar e memorizar sessao...");
+    const firstLine = raw.trim().split("\n").find((l) => l.trim().length > 8) || (site.name + " Sessao");
+    const cleanTitle = firstLine.replace(/^[#*`\s-]+/, "").slice(0, 50).trim();
+    const paragraphs = raw.split(/\n\s*\n/).filter((p) => p.trim().length > 20);
+    const summary = paragraphs.slice(-3).map((p) => "• " + p.trim().replace(/\n+/g, " ")).join("\n\n").slice(0, 1200);
+
+    const newMem = {
+      id: "mem-" + Date.now(),
+      title: (site.name + ": " + cleanTitle).slice(0, 70),
+      body: summary || raw.slice(0, 800),
+      tags: [site.id, "auto-aprendido", "sessao"],
+      active: true,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const memories = await loadMemories();
+    memories.unshift(newMem);
+    await new Promise((r) => chrome.storage.local.set({ memories }, r));
+    sendMsg({ type: "sync-memories" }).catch(() => {});
+    toast("🧠 Sessao gravada na memoria persistente!");
   }
 
   // --------------------------------------------------------------------------
   // BLOCO 15: Construção do Dock Flutuante nos Chats Web
   // O QUE É SUPOSTO ACONTECER:
   // - Injeta um widget flutuante no documento com botões rápidos:
-  //     * Inserir memória / Substituir campo
+  //     * 🧠 Aprender / Inserir memória inteligente / Substituir campo
   //     * Exportações: Código -> ZIP, Chat -> MD / DOCX / PDF / XLSX / HTML
   //     * Painel lateral e botão direto "📁 Ficheiros"
   // - Consulta o estado de saúde do hub local e atualiza o indicador de status.
@@ -388,12 +450,13 @@
     if (document.getElementById("aihub-dock")) return;
     const dock = document.createElement("div");
     dock.id = "aihub-dock";
-    dock.innerHTML = '<div class="aihub-head"><strong>AI Hub \u00b7 ' + site.name + '</strong><button type="button" id="aihub-min">–</button></div><div class="aihub-body"><p class="aihub-hint" id="aihub-hub-status">A procurar hub local…</p><div class="aihub-row"><button type="button" data-act="prepend">Inserir memoria</button><button type="button" data-act="replace">Substituir campo</button></div><div class="aihub-row"><button type="button" data-act="scan">Codigo → ficheiros</button><button type="button" data-act="md">Chat → MD</button></div><div class="aihub-row"><button type="button" data-act="docx">Chat → DOCX</button><button type="button" data-act="pdf">Chat → PDF</button></div><div class="aihub-row"><button type="button" data-act="xlsx">Chat → XLSX</button><button type="button" data-act="html">Chat → HTML</button></div><div class="aihub-row"><button type="button" data-act="panel">Painel</button><button type="button" data-act="files">📁 Ficheiros</button></div></div>';
+    dock.innerHTML = '<div class="aihub-head"><strong>AI Hub \u00b7 ' + site.name + '</strong><button type="button" id="aihub-min">–</button></div><div class="aihub-body"><p class="aihub-hint" id="aihub-hub-status">A procurar hub local…</p><div class="aihub-row"><button type="button" data-act="learn">🧠 Aprender</button><button type="button" data-act="prepend">Inserir memoria</button></div><div class="aihub-row"><button type="button" data-act="replace">Substituir campo</button><button type="button" data-act="scan">Codigo → ficheiros</button></div><div class="aihub-row"><button type="button" data-act="docx">Chat → DOCX</button><button type="button" data-act="pdf">Chat → PDF</button></div><div class="aihub-row"><button type="button" data-act="xlsx">Chat → XLSX</button><button type="button" data-act="html">Chat → HTML</button></div><div class="aihub-row"><button type="button" data-act="panel">Painel</button><button type="button" data-act="files">📁 Ficheiros</button></div></div>';
     document.documentElement.appendChild(dock);
     dock.querySelector("#aihub-min").addEventListener("click", () => dock.classList.toggle("min"));
     dock.addEventListener("click", async (ev) => {
       const act = ev.target.closest("[data-act]")?.dataset.act;
       if (!act) return;
+      if (act === "learn") await learnFromChat();
       if (act === "prepend") await injectMemory("append");
       if (act === "replace") await injectMemory("replace");
       if (act === "scan") await exportHarvest("scan");
@@ -420,9 +483,13 @@
   // --------------------------------------------------------------------------
   // BLOCO 16: Receptor de Mensagens Enviadas pelo Popup ou Painel Lateral
   // O QUE É SUPOSTO ACONTECER:
-  // - Escuta ordens externas como "inject" (inserir memória), "export" e "ping".
+  // - Escuta ordens externas como "inject", "learn", "export" e "ping".
   // --------------------------------------------------------------------------
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
+    if (msg?.type === "learn") {
+      learnFromChat().then(() => sendResponse({ ok: true }));
+      return true;
+    }
     if (msg?.type === "inject") {
       injectMemory(msg.mode || "append", msg.text || "").then(() => {
         if (msg.submit && site.send) {

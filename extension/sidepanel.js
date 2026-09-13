@@ -13,6 +13,8 @@
 const TARGETS = [
   { id: "qwen", name: "Qwen", url: "https://chat.qwen.ai/" },
   { id: "deepseek", name: "DeepSeek", url: "https://chat.deepseek.com/" },
+  { id: "chatgpt", name: "ChatGPT", url: "https://chatgpt.com/" },
+  { id: "claude", name: "Claude", url: "https://claude.ai/" },
   { id: "glm", name: "GLM / Z.ai", url: "https://chat.z.ai/" },
   { id: "glm-cn", name: "Zhipu", url: "https://chatglm.cn/" },
   { id: "mistral", name: "Mistral", url: "https://chat.mistral.ai/" },
@@ -23,7 +25,8 @@ const TARGETS = [
 // O QUE É SUPOSTO ACONTECER:
 // - uid(): Gera identificadores únicos universais (UUIDv4) para novas memórias.
 // - getMemories() / setMemories(): Interface assíncrona com chrome.storage.local.
-// - compose(user): Prefixa o texto do utilizador com o bloco das memórias ativas.
+// - scoreRelevance(mem, query): Pontua a afinidade de uma memória com o texto do utilizador.
+// - compose(user): Prefixa o texto com memórias ativas ordenadas por relevância semântica.
 // - escapeHtml(s): Previne ataques XSS ao renderizar títulos e corpos no DOM.
 // - formatBytes(bytes): Converte tamanhos de ficheiro em unidades legíveis (KB, MB).
 // ----------------------------------------------------------------------------
@@ -41,13 +44,31 @@ function setMemories(memories) {
   return new Promise((resolve) => chrome.storage.local.set({ memories }, resolve));
 }
 
+function scoreRelevance(mem, query) {
+  if (!query || !query.trim()) return 1;
+  const words = query.toLowerCase().match(/\b[\p{L}\p{N}]{3,}\b/gu) || [];
+  if (!words.length) return 1;
+  let score = 0;
+  const title = (mem.title || "").toLowerCase();
+  const body = (mem.body || "").toLowerCase();
+  const tags = (Array.isArray(mem.tags) ? mem.tags.join(" ") : "").toLowerCase();
+  for (const w of words) {
+    if (title.includes(w)) score += 5;
+    if (tags.includes(w)) score += 4;
+    if (body.includes(w)) score += 1;
+  }
+  return score;
+}
+
 function compose(user) {
   return getMemories().then((mems) => {
     const act = mems.filter((m) => m.active);
     if (!act.length) return user.trim();
+    // Ordena por relevância semântica em relação ao prompt do utilizador
+    const sorted = [...act].sort((a, b) => scoreRelevance(b, user) - scoreRelevance(a, user));
     return (
       "[MEMORIA PERSISTENTE]\n" +
-      act.map((m) => "### " + m.title + "\n" + m.body).join("\n\n") +
+      sorted.map((m) => "### " + m.title + "\n" + m.body).join("\n\n") +
       "\n[FIM DA MEMORIA]\n\n" +
       user.trim()
     );

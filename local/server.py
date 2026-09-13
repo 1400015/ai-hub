@@ -77,6 +77,18 @@ PROVIDERS = {
         "model": "mistral-small-latest",
         "chat": "https://chat.mistral.ai",
     },
+    "openai": {
+        "name": "OpenAI / ChatGPT",
+        "base": "https://api.openai.com/v1",
+        "model": "gpt-4o-mini",
+        "chat": "https://chatgpt.com",
+    },
+    "claude": {
+        "name": "Claude / Anthropic",
+        "base": "https://api.anthropic.com/v1",
+        "model": "claude-3-5-sonnet-20241022",
+        "chat": "https://claude.ai",
+    },
 }
 
 SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]")
@@ -424,10 +436,29 @@ class Handler(SimpleHTTPRequestHandler):
         temperature = float(payload.get("temperature", 0.7))
         meta = PROVIDERS[provider]
         base = meta.get("base_cn") if payload.get("use_cn") and meta.get("base_cn") else meta["base"]
-        url = base.rstrip("/") + "/chat/completions"
         stream = bool(payload.get("stream", False))
-        body_req = json.dumps({"model": model, "messages": messages, "stream": stream, "temperature": temperature}).encode("utf-8")
-        req = urllib.request.Request(url, data=body_req, method="POST", headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"})
+
+        if provider == "claude":
+            url = base.rstrip("/") + "/messages"
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            }
+            body_dict = {
+                "model": model,
+                "max_tokens": 4096,
+                "messages": [m for m in messages if m.get("role") in ("user", "assistant")],
+                "stream": stream,
+                "temperature": temperature,
+            }
+            body_req = json.dumps(body_dict).encode("utf-8")
+        else:
+            url = base.rstrip("/") + "/chat/completions"
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            body_req = json.dumps({"model": model, "messages": messages, "stream": stream, "temperature": temperature}).encode("utf-8")
+
+        req = urllib.request.Request(url, data=body_req, method="POST", headers=headers)
         try:
             resp = urllib.request.urlopen(req, timeout=120)
             if stream:
@@ -445,7 +476,10 @@ class Handler(SimpleHTTPRequestHandler):
                     pass
                 return
             data = json.loads(resp.read().decode("utf-8"))
-            text = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
+            if provider == "claude":
+                text = (data.get("content") or [{}])[0].get("text", "")
+            else:
+                text = data.get("choices", [{}])[0].get("message", {}).get("content") or ""
             return self._send(*json_bytes({"ok": True, "text": text, "raw": data}))
         except urllib.error.HTTPError as err:
             detail = err.read().decode("utf-8", errors="replace")[:2000]

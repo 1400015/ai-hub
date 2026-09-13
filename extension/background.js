@@ -186,7 +186,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Sub-bloco 5.8: Chamada direta de IA via Service Worker (Sem CORS / Modo Autónomo)
   // O QUE É SUPOSTO ACONTECER:
   // - O background script usa as suas permissões de host para chamar diretamente
-  //   as APIs oficiais da DeepSeek, DashScope, GLM ou Mistral.
+  //   as APIs oficiais da DeepSeek, DashScope, GLM, Mistral, OpenAI ou Claude.
   // - Devolve a resposta em texto ao remetente sem necessidade de proxy local.
   if (msg?.type === "direct-chat") {
     const { provider, apiKey, model, messages, temperature } = msg;
@@ -195,12 +195,45 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       deepseek: { base: "https://api.deepseek.com/v1", model: "deepseek-chat" },
       glm: { base: "https://api.z.ai/api/paas/v4", model: "glm-4.5-flash" },
       mistral: { base: "https://api.mistral.ai/v1", model: "mistral-small-latest" },
+      openai: { base: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+      chatgpt: { base: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+      claude: { base: "https://api.anthropic.com/v1", model: "claude-3-5-sonnet-20241022", isAnthropic: true },
     };
     const pInfo = PROVIDERS[provider];
     if (!pInfo) {
       sendResponse({ ok: false, error: "Fornecedor desconhecido: " + provider });
       return true;
     }
+
+    if (pInfo.isAnthropic) {
+      const url = "https://api.anthropic.com/v1/messages";
+      fetch(url, {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+          "dangerously-allow-browser": "true",
+        },
+        body: JSON.stringify({
+          model: model || pInfo.model,
+          max_tokens: 4096,
+          messages: (messages || []).filter((m) => m.role === "user" || m.role === "assistant"),
+          temperature: temperature || 0.7,
+        }),
+      })
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error?.message || "HTTP " + res.status);
+          const text = data.content?.[0]?.text || "";
+          sendResponse({ ok: true, text, raw: data });
+        })
+        .catch((err) => {
+          sendResponse({ ok: false, error: err.message });
+        });
+      return true;
+    }
+
     const url = pInfo.base.replace(/\/$/, "") + "/chat/completions";
     fetch(url, {
       method: "POST",

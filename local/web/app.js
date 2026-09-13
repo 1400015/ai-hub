@@ -15,6 +15,8 @@ const PROVIDERS = {
   deepseek: { name: "DeepSeek", url: "https://chat.deepseek.com", note: "X-Frame-Options impede embedding." },
   glm: { name: "GLM / Z.ai", url: "https://chat.z.ai", alt: "https://chatglm.cn", note: "Internacional: chat.z.ai · China: chatglm.cn." },
   mistral: { name: "Mistral Le Chat", url: "https://chat.mistral.ai", note: "frame-ancestors none — o iframe nao carrega." },
+  openai: { name: "OpenAI / ChatGPT", url: "https://chatgpt.com", note: "Chat oficial ChatGPT." },
+  claude: { name: "Claude / Anthropic", url: "https://claude.ai", note: "Chat oficial Claude." },
 };
 
 const LANG_TO_FMT = {

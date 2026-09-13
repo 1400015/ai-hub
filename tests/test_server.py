@@ -93,9 +93,32 @@ class TestContentSizeLimit:
         content = "a" * (MAX_CONTENT_SIZE - 1)
         assert len(content) < MAX_CONTENT_SIZE
     
-    def test_content_over_limit(self):
-        content = "a" * (MAX_CONTENT_SIZE + 1)
-        assert len(content) > MAX_CONTENT_SIZE
+    def test_content_over_limit_rejection(self):
+        import io
+        from server import Handler
+        class FakeHandler(Handler):
+            def __init__(self, length):
+                self.headers = {"Content-Length": str(length)}
+                self.rfile = io.BytesIO(b'{"test": 1}')
+        # Exceder MAX_CONTENT_SIZE deve retornar None imediatamente (sem ler nem alocar)
+        h_over = FakeHandler(MAX_CONTENT_SIZE + 1024)
+        assert h_over._read_json() is None
+
+        # Dentro do limite deve fazer o parse com sucesso
+        h_ok = FakeHandler(11)
+        assert h_ok._read_json() == {"test": 1}
+
+
+class TestProviders:
+    """Testes para cobertura e integridade dos provedores de IA suportados."""
+
+    def test_all_expected_providers_registered(self):
+        expected = {"qwen", "deepseek", "glm", "mistral", "openai", "claude"}
+        for p in expected:
+            assert p in PROVIDERS, f"Provedor {p} deve estar registado em server.PROVIDERS"
+            assert "base" in PROVIDERS[p]
+            assert "model" in PROVIDERS[p]
+            assert "chat" in PROVIDERS[p]
 
 
 class TestExports:
