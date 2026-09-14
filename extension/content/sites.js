@@ -120,6 +120,27 @@ const AIHUB_SITES = [
       'button[type="submit"]',
     ],
   },
+  {
+    id: "gemini",
+    name: "Gemini",
+    test: (h) => h.includes("gemini.google.com"),
+    url: "https://gemini.google.com",
+    composers: [
+      'div.ql-editor[contenteditable="true"]',
+      'div[contenteditable="true"][role="textbox"]',
+      'rich-textarea div[contenteditable="true"]',
+      'div[contenteditable="true"]',
+      "textarea",
+    ],
+    send: [
+      "button.send-button",
+      "button[aria-label*='Send' i]",
+      "button[aria-label*='Enviar' i]",
+      "div[role='button'][aria-label*='Send' i]",
+      "div[role='button'][aria-label*='Enviar' i]",
+      "button[class*='send']",
+    ],
+  },
 ];
 
 // ----------------------------------------------------------------------------

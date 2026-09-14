@@ -10,8 +10,10 @@
 // - Fecha imediatamente a janela popup flutuante para libertar espaço visual.
 // ----------------------------------------------------------------------------
 document.getElementById("panel").onclick = async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.windowId != null) await chrome.sidePanel.open({ windowId: tab.windowId });
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.windowId != null) await chrome.sidePanel.open({ windowId: tab.windowId });
+  } catch { /* Ignora se o sidePanel não estiver disponível */ }
   window.close();
 };
 
@@ -23,11 +25,13 @@ document.getElementById("panel").onclick = async () => {
 //   e comuta automaticamente para a aba "Ficheiros".
 // ----------------------------------------------------------------------------
 document.getElementById("viewFiles").onclick = async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.windowId != null) {
-    await chrome.storage.local.set({ targetView: "files" });
-    await chrome.sidePanel.open({ windowId: tab.windowId });
-  }
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.windowId != null) {
+      await chrome.storage.local.set({ targetView: "files" });
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+    }
+  } catch { /* Ignora se o sidePanel não estiver disponível */ }
   window.close();
 };
 
@@ -45,11 +49,13 @@ document.getElementById("inject").onclick = async () => {
   try {
     await chrome.tabs.sendMessage(tab.id, { type: "inject", mode: "append" });
   } catch {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      files: ["lib/exporter.js", "content/sites.js", "content/inject.js"],
-    });
-    await chrome.tabs.sendMessage(tab.id, { type: "inject", mode: "append" });
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ["lib/exporter.js", "content/sites.js", "content/inject.js"],
+      });
+      await chrome.tabs.sendMessage(tab.id, { type: "inject", mode: "append" });
+    } catch { /* Ignora se a página não for um chat compatível */ }
   }
 };
 

@@ -159,12 +159,57 @@ class TestChatConfig:
         assert "deepseek" in PROVIDERS
         assert "glm" in PROVIDERS
         assert "mistral" in PROVIDERS
+        assert "openai" in PROVIDERS
+        assert "claude" in PROVIDERS
 
     def test_providers_models(self):
         for p, config in PROVIDERS.items():
             assert "model" in config
             assert "base" in config
             assert config["base"].startswith("http")
+
+
+class TestClaudeSystemPrompt:
+    """Testes para verificacao de extracao de system prompt na API do Claude."""
+
+    def test_claude_extracts_system_prompt(self, monkeypatch):
+        import urllib.request
+        import io
+        from server import Handler
+
+        captured_body = {}
+
+        class FakeResp:
+            def read(self):
+                return b'{"content": [{"text": "Ola!"}]}'
+
+        def fake_urlopen(req, timeout=120):
+            captured_body.update(json.loads(req.data.decode("utf-8")))
+            return FakeResp()
+
+        monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+        class FakeHandler(Handler):
+            def __init__(self):
+                self.sent_data = None
+            def _send(self, code, body, ctype, extra=None):
+                self.sent_data = (code, body)
+
+        handler = FakeHandler()
+        payload = {
+            "provider": "claude",
+            "api_key": "test_key",
+            "messages": [
+                {"role": "system", "content": "Instrucao do sistema"},
+                {"role": "user", "content": "Pergunta"},
+            ],
+        }
+        handler._handle_chat(payload)
+
+        assert "system" in captured_body
+        assert captured_body["system"] == "Instrucao do sistema"
+        assert len(captured_body["messages"]) == 1
+        assert captured_body["messages"][0]["role"] == "user"
 
 
 class TestSecurity:

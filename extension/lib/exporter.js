@@ -77,7 +77,7 @@
       ((now.getSeconds() >> 1) & 0x1f);
     const dosDate =
       (((now.getFullYear() - 1980) & 0x7f) << 9) |
-      ((now.getMonth() + 1) & 0xf) << 5) |
+      (((now.getMonth() + 1) & 0xf) << 5) |
       (now.getDate() & 0x1f);
 
     files.forEach((f) => {

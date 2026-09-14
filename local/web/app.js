@@ -99,7 +99,10 @@ function providerPanel(id) {
 }
 
 function initProviderPanels() {
-  ["qwen", "deepseek", "glm", "mistral"].forEach((id) => { document.getElementById("panel-" + id).innerHTML = providerPanel(id); });
+  ["qwen", "deepseek", "glm", "mistral", "openai", "claude"].forEach((id) => {
+    const el = document.getElementById("panel-" + id);
+    if (el) el.innerHTML = providerPanel(id);
+  });
   document.querySelector(".workspace").addEventListener("click", (ev) => {
     const open = ev.target.closest("[data-open]");
     if (open) window.open(open.dataset.open, "_blank", "noopener,noreferrer");
@@ -411,7 +414,7 @@ async function sendApi() {
         if (trimmed.startsWith("data: ")) {
           try {
             const parsed = JSON.parse(trimmed.slice(6));
-            const delta = parsed.choices?.[0]?.delta?.content || "";
+            const delta = parsed.choices?.[0]?.delta?.content || (parsed.type === "content_block_delta" ? parsed.delta?.text : "") || parsed.delta?.text || "";
             if (delta) {
               fullText += delta;
               assistantEl.textContent = fullText;
@@ -427,7 +430,7 @@ async function sendApi() {
     if (!fullText && buffer.startsWith("data: ") && buffer !== "data: [DONE]") {
       try {
         const parsed = JSON.parse(buffer.slice(6));
-        fullText += parsed.choices?.[0]?.delta?.content || "";
+        fullText += parsed.choices?.[0]?.delta?.content || (parsed.type === "content_block_delta" ? parsed.delta?.text : "") || parsed.delta?.text || "";
         assistantEl.textContent = fullText;
       } catch {}
     }
@@ -506,6 +509,8 @@ function bindUi() {
       deepseek: document.getElementById("key-deepseek").value.trim(),
       glm: document.getElementById("key-glm").value.trim(),
       mistral: document.getElementById("key-mistral").value.trim(),
+      openai: document.getElementById("key-openai")?.value.trim() || "",
+      claude: document.getElementById("key-claude")?.value.trim() || "",
     };
     const pass = passInput?.value.trim();
     if (pass) {
@@ -540,8 +545,9 @@ function bindUi() {
         const cipher = JSON.parse(raw);
         const dec = await decryptKeys(cipher, pass);
         activeKeysCache = dec;
-        ["qwen", "deepseek", "glm", "mistral"].forEach((p) => {
-          if (dec[p]) document.getElementById("key-" + p).value = dec[p];
+        ["qwen", "deepseek", "glm", "mistral", "openai", "claude"].forEach((p) => {
+          const el = document.getElementById("key-" + p);
+          if (el && dec[p]) el.value = dec[p];
         });
         unlockBtn.style.display = "none";
         if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Desbloqueado 🔓";
@@ -555,7 +561,10 @@ function bindUi() {
   document.getElementById("btnClearKeys").onclick = () => {
     localStorage.removeItem("aihub.keys");
     activeKeysCache = null;
-    ["qwen", "deepseek", "glm", "mistral"].forEach((p) => document.getElementById("key-" + p).value = "");
+    ["qwen", "deepseek", "glm", "mistral", "openai", "claude"].forEach((p) => {
+      const el = document.getElementById("key-" + p);
+      if (el) el.value = "";
+    });
     if (passInput) passInput.value = "";
     if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Nao cifrado 🔓";
     if (unlockBtn) unlockBtn.style.display = "none";
@@ -572,8 +581,9 @@ function bindUi() {
         if (unlockBtn) unlockBtn.style.display = "inline-block";
       } else {
         activeKeysCache = parsed;
-        ["qwen", "deepseek", "glm", "mistral"].forEach((p) => {
-          if (parsed[p]) document.getElementById("key-" + p).value = parsed[p];
+        ["qwen", "deepseek", "glm", "mistral", "openai", "claude"].forEach((p) => {
+          const el = document.getElementById("key-" + p);
+          if (el && parsed[p]) el.value = parsed[p];
         });
         if (cryptoStatusEl) cryptoStatusEl.textContent = "Estado: Nao cifrado 🔓";
       }

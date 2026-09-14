@@ -8,7 +8,7 @@
 <body>
   <header>
     <h1>AI Hub Memória</h1>
-    <p>Memória partilhada entre Qwen, DeepSeek, GLM e Mistral. Injecção no chat oficial + exportação de código.</p>
+    <p>Memória partilhada entre ChatGPT, Claude, Gemini, Qwen, DeepSeek, GLM e Mistral. Injecção no chat oficial + exportação de código.</p>
   </header>
 
   <nav class="tabs" role="tablist">
@@ -35,6 +35,9 @@
   <section id="view-chats" class="view">
     <p class="note">O painel tenta abrir o site oficial em iframe. Se ficar em branco, usa Nova janela.</p>
     <div class="chats">
+      <article data-src="https://chatgpt.com"><h2>ChatGPT</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
+      <article data-src="https://claude.ai"><h2>Claude</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
+      <article data-src="https://gemini.google.com"><h2>Gemini</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
       <article data-src="https://chat.qwen.ai"><h2>Qwen</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
       <article data-src="https://chat.deepseek.com"><h2>DeepSeek</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>
       <article data-src="https://chat.z.ai"><h2>GLM / Z.ai</h2><div class="row"><button data-open>Nova janela</button><button data-frame>Iframe</button></div><iframe hidden></iframe></article>

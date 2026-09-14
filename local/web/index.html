@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Hub Local — Qwen · DeepSeek · GLM · Mistral</title>
+  <title>AI Hub Local — ChatGPT · Claude · Gemini · Qwen · DeepSeek · GLM · Mistral</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
@@ -48,6 +48,8 @@
         <button class="tab" data-tab="deepseek">DeepSeek</button>
         <button class="tab" data-tab="glm">GLM</button>
         <button class="tab" data-tab="mistral">Mistral</button>
+        <button class="tab" data-tab="openai">ChatGPT</button>
+        <button class="tab" data-tab="claude">Claude</button>
         <button class="tab" data-tab="monitor">Monitor / Exportar</button>
         <button class="tab" data-tab="api">Chat via API</button>
         <button class="tab" data-tab="settings">Chaves API</button>
@@ -57,6 +59,8 @@
         <section class="panel" id="panel-deepseek"></section>
         <section class="panel" id="panel-glm"></section>
         <section class="panel" id="panel-mistral"></section>
+        <section class="panel" id="panel-openai"></section>
+        <section class="panel" id="panel-claude"></section>
         <section class="panel" id="panel-monitor">
           <div class="notice">Cola aqui a resposta do modelo para detetar blocos de codigo e gerar ficheiros locais.</div>
           <textarea id="monitorInput" style="min-height:180px" placeholder="Cola a resposta completa do modelo…"></textarea>
@@ -79,6 +83,8 @@
               <option value="deepseek">DeepSeek</option>
               <option value="glm">GLM / Z.ai</option>
               <option value="mistral">Mistral</option>
+              <option value="openai">OpenAI / ChatGPT</option>
+              <option value="claude">Claude / Anthropic</option>
             </select>
             <input id="apiModel" placeholder="modelo (opcional)" style="max-width:220px" />
             <label class="btn ghost"><input type="checkbox" id="useCn" /> Endpoint CN</label>
@@ -114,6 +120,10 @@
           <input id="key-glm" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
           <label>Mistral</label>
           <input id="key-mistral" type="password" placeholder="…" autocomplete="off" spellcheck="false" />
+          <label>OpenAI / ChatGPT</label>
+          <input id="key-openai" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+          <label>Claude / Anthropic</label>
+          <input id="key-claude" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
           <div class="row">
             <button class="btn primary" id="btnSaveKeys">Guardar chaves</button>
             <button class="btn danger" id="btnClearKeys">Apagar chaves</button>

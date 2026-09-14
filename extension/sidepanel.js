@@ -11,10 +11,11 @@
 //   memórias injetadas com um simples clique.
 // ----------------------------------------------------------------------------
 const TARGETS = [
-  { id: "qwen", name: "Qwen", url: "https://chat.qwen.ai/" },
-  { id: "deepseek", name: "DeepSeek", url: "https://chat.deepseek.com/" },
   { id: "chatgpt", name: "ChatGPT", url: "https://chatgpt.com/" },
   { id: "claude", name: "Claude", url: "https://claude.ai/" },
+  { id: "gemini", name: "Gemini", url: "https://gemini.google.com/" },
+  { id: "qwen", name: "Qwen", url: "https://chat.qwen.ai/" },
+  { id: "deepseek", name: "DeepSeek", url: "https://chat.deepseek.com/" },
   { id: "glm", name: "GLM / Z.ai", url: "https://chat.z.ai/" },
   { id: "glm-cn", name: "Zhipu", url: "https://chatglm.cn/" },
   { id: "mistral", name: "Mistral", url: "https://chat.mistral.ai/" },

@@ -445,6 +445,8 @@ class Handler(SimpleHTTPRequestHandler):
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json",
             }
+            system_msgs = [m.get("content", "") for m in messages if m.get("role") == "system"]
+            system_prompt = "\n\n".join(str(c) for c in system_msgs if c)
             body_dict = {
                 "model": model,
                 "max_tokens": 4096,
@@ -452,6 +454,8 @@ class Handler(SimpleHTTPRequestHandler):
                 "stream": stream,
                 "temperature": temperature,
             }
+            if system_prompt:
+                body_dict["system"] = system_prompt
             body_req = json.dumps(body_dict).encode("utf-8")
         else:
             url = base.rstrip("/") + "/chat/completions"

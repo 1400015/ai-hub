@@ -207,6 +207,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     if (pInfo.isAnthropic) {
       const url = "https://api.anthropic.com/v1/messages";
+      const systemMsgs = (messages || []).filter((m) => m.role === "system").map((m) => m.content);
+      const systemPrompt = systemMsgs.filter(Boolean).join("\n\n");
+      const anthropicBody = {
+        model: model || pInfo.model,
+        max_tokens: 4096,
+        messages: (messages || []).filter((m) => m.role === "user" || m.role === "assistant"),
+        temperature: temperature || 0.7,
+      };
+      if (systemPrompt) {
+        anthropicBody.system = systemPrompt;
+      }
       fetch(url, {
         method: "POST",
         headers: {
@@ -215,12 +226,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           "content-type": "application/json",
           "dangerously-allow-browser": "true",
         },
-        body: JSON.stringify({
-          model: model || pInfo.model,
-          max_tokens: 4096,
-          messages: (messages || []).filter((m) => m.role === "user" || m.role === "assistant"),
-          temperature: temperature || 0.7,
-        }),
+        body: JSON.stringify(anthropicBody),
       })
         .then(async (res) => {
           const data = await res.json();
